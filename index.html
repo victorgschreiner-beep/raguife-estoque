@@ -1605,6 +1605,12 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
 
     <!-- ══════════════════ RELATÓRIO PREVISTO × REALIZADO ══════════════════ -->
     <div id="page-relatorio" class="page">
+      <div style="background:rgba(115,150,48,.08);border:1px solid rgba(115,150,48,.25);border-radius:8px;padding:12px 18px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:var(--verde-claro);margin-bottom:3px;">⊞ Estoque Pós MES × Estoque Físico</div>
+        <div style="font-size:11.5px;color:var(--t2);">
+          Compara o estoque que o sistema calcula após o consumo MES com o estoque físico contado. A variação mostra o erro real de inventário.
+        </div>
+      </div>
       <div class="fcard" style="padding:12px 16px;">
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
           <div class="fg" style="flex:1;min-width:120px;">
@@ -1616,13 +1622,14 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
               <option value="PET">PET</option>
             </select>
           </div>
-          <div class="fg" style="flex:1;min-width:120px;">
-            <label class="fl">Desvio</label>
+          <div class="fg" style="flex:1;min-width:140px;">
+            <label class="fl">Variação Física</label>
             <select id="rel-dev" class="fs" onchange="renderRelatorio()">
               <option value="">Todos</option>
-              <option value="acima">Acima do previsto</option>
-              <option value="abaixo">Abaixo do previsto</option>
-              <option value="ok">Sem desvio</option>
+              <option value="acima">Físico &gt; Sistema</option>
+              <option value="abaixo">Físico &lt; Sistema</option>
+              <option value="ok">Sem variação</option>
+              <option value="semContagem">Sem contagem</option>
             </select>
           </div>
           <div class="fg" style="flex:2;min-width:200px;">
@@ -2955,7 +2962,7 @@ const PAGE_TITLES = {
   consumo: 'Lançar Consumo',
   entrada: 'Registrar Entrada', contagem: 'Contagem Física',
   balanco: 'Balanço de Estoque',
-  relatorio: 'Previsto × Realizado', cobertura: 'Cobertura de Estoque',
+  relatorio: 'Est. Pós MES × Físico', cobertura: 'Cobertura de Estoque',
   historico: 'Histórico',
   'novo-material': 'Novo Material',
   materiais: 'Materiais',
@@ -3737,64 +3744,94 @@ function renderCobertura() {
 // ═══════════════════════════════════════════════════════════
 function renderRelatorio() {
   const aF = document.getElementById('rel-area')?.value || '';
-  const dF = document.getElementById('rel-dev')?.value || '';
+  const dF = document.getElementById('rel-dev')?.value  || '';
   const sF = (document.getElementById('rel-search')?.value || '').toLowerCase();
+
   let mats = DB.mat.filter(m => {
     if (aF && m.area !== aF) return false;
-    if (sF && !m.produto.toLowerCase().includes(sF) && !m.codigo.toLowerCase().includes(sF)) return false;
-    if (dF === 'acima' && !(m.desvio > 0.01)) return false;
-    if (dF === 'abaixo' && !(m.desvio < -0.01)) return false;
-    if (dF === 'ok' && Math.abs(m.desvio) > 0.01) return false;
+    if (sF && !m.produto.toLowerCase().includes(sF) && !(m.codigo||'').toLowerCase().includes(sF)) return false;
+    const fisico = estRealContado(m);
+    const variacao = fisico > 0 ? fisico - m.est_atual : null;
+    if (dF === 'acima'       && !(variacao !== null && variacao > 0.1))  return false;
+    if (dF === 'abaixo'      && !(variacao !== null && variacao < -0.1)) return false;
+    if (dF === 'ok'          && !(variacao !== null && Math.abs(variacao) <= 0.1)) return false;
+    if (dF === 'semContagem' && fisico > 0) return false;
     return true;
   });
 
-  const totalPrev = mats.reduce((s,m) => s + m.cons_previsto, 0);
-  const totalReal = mats.reduce((s,m) => s + m.cons_realizado, 0);
-  const totalDev = mats.reduce((s,m) => s + m.desvio, 0);
+  const totSistema  = mats.reduce((s,m) => s + m.est_atual, 0);
+  const totFisicos  = mats.filter(m => estRealContado(m) > 0);
+  const totFisico   = totFisicos.reduce((s,m) => s + estRealContado(m), 0);
+  const totVariacao = totFisicos.reduce((s,m) => s + (estRealContado(m) - m.est_atual), 0);
+  const comVar      = mats.filter(m => { const fi = estRealContado(m); return fi > 0 && Math.abs(fi - m.est_atual) > 0.1; }).length;
+  const semCont     = mats.filter(m => !estRealContado(m)).length;
 
-  document.getElementById('relatorio-table').innerHTML = `
-    <div class="tcard">
-      <div class="tcard-head">
-        <span class="tcard-title">Previsto × Realizado (MES)</span>
-        <span class="tcard-count">${mats.length} itens</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--t3)">
-          Total Prev: <span style="color:var(--blue)">${f0(totalPrev)}</span> ·
-          Total Real: <span style="color:var(--cyan)">${f0(totalReal)}</span> ·
-          Desvio: <span style="color:${totalDev>0?'var(--red)':'var(--green)'}">${totalDev>=0?'+':''}${f0(totalDev)}</span>
-        </span>
-      </div>
-      <div class="twrap"><table>
-        <thead><tr>
-          <th>Código</th><th>Produto</th><th>UN</th><th>Área</th>
-          <th>Est. Anterior</th><th>Entrada</th>
-          <th>Previsto (MES)</th><th>Realizado</th><th>Desvio</th><th>Desvio %</th>
-          <th>Est. Atual</th><th>Obs</th>
-        </tr></thead>
-        <tbody>${mats.map(m => {
-          const p = m.cons_previsto > 0 ? pct(m.cons_realizado, m.cons_previsto) : 0;
-          const dc = desvioColor(m.desvio);
-          const hasDesvio = Math.abs(m.desvio) > 0.01;
-          return `<tr class="${hasDesvio ? 'row-desvio' : ''}">
-            <td class="tm">${m.codigo || '—'}</td>
-            <td class="td-desc">${m.produto}</td>
-            <td class="tm">${m.tipo}</td>
-            <td>${areaBadge(m.area)}</td>
-            <td class="tm">${f(m.est_anterior)}</td>
-            <td class="tm" style="color:var(--green)">${m.entrada > 0 ? '+' + f(m.entrada) : '—'}</td>
-            <td class="tm" style="color:var(--blue)">${f(m.cons_previsto)}</td>
-            <td class="tm" style="color:var(--cyan)">${f(m.cons_realizado)}</td>
-            <td class="${dc}">${desvioLabel(m.desvio)}</td>
-            <td class="${dc}">${m.cons_previsto > 0 ? f(p) + '%' : '—'}</td>
-            <td class="tm">${f(m.est_atual)}</td>
-            <td style="font-size:11px;color:var(--t3);max-width:120px;overflow:hidden;text-overflow:ellipsis">${m.obs || '—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>
-    </div>`;
+  const rows = mats.map(m => {
+    const fisico   = estRealContado(m);
+    const temCont  = fisico > 0;
+    const variacao = temCont ? (fisico - m.est_atual) : null;
+    const varPct   = (temCont && m.est_atual > 0) ? (variacao / m.est_atual) * 100 : null;
+    const varCls   = variacao === null ? 'var-zero'
+      : Math.abs(variacao) < 0.1 ? 'var-zero'
+      : variacao > 0 ? 'var-pos' : 'var-neg';
+    const rowStyle = variacao !== null && Math.abs(variacao) > 0.1
+      ? (variacao > 0 ? 'background:rgba(184,160,32,.06)' : 'background:rgba(217,64,64,.06)')
+      : '';
+    const dataContagem = m.data_contagem
+      ? new Date(m.data_contagem + 'T00:00:00').toLocaleDateString('pt-BR')
+      : '\u2014';
+    const fisicoCel = temCont
+      ? '<td class="col-fish">' + fEmbTxt(m, fisico) + '</td>'
+      : '<td class="tm" style="color:var(--t3)"><span style="font-size:10px;">SEM CONTAGEM</span></td>';
+    const varKg  = variacao !== null
+      ? '<td class="' + varCls + '">' + (variacao >= 0 ? (Math.abs(variacao) > 0.1 ? '+' : '') : '') + f(variacao) + ' kg</td>'
+      : '<td class="var-zero">\u2014</td>';
+    const varPctCel = varPct !== null
+      ? '<td class="' + varCls + '">' + (varPct >= 0 ? '+' : '') + f(varPct, 1) + '%</td>'
+      : '<td class="var-zero">\u2014</td>';
+    return '<tr style="' + rowStyle + '">'
+      + '<td class="tm">' + (m.codigo || '\u2014') + '</td>'
+      + '<td class="td-desc" style="max-width:180px">' + m.produto + '</td>'
+      + '<td class="tm">' + m.tipo + '</td>'
+      + '<td>' + areaBadge(m.area) + '</td>'
+      + '<td class="col-syst">' + fEmbTxt(m, m.est_atual) + '</td>'
+      + fisicoCel
+      + varKg
+      + varPctCel
+      + '<td class="tm" style="color:var(--t3)">' + dataContagem + '</td>'
+      + '</tr>';
+  }).join('');
+
+  const varTotalStr = totFisicos.length > 0
+    ? (totVariacao >= 0 ? '+' : '') + f0(totVariacao) + ' kg'
+    : '\u2014';
+  const varColor = Math.abs(totVariacao) < 0.1 ? 'var(--t3)' : totVariacao > 0 ? 'var(--yellow)' : 'var(--red)';
+
+  document.getElementById('relatorio-table').innerHTML =
+    '<div class="tcard">'
+    + '<div class="tcard-head">'
+    + '<span class="tcard-title">Est. P\u00f3s MES \u00d7 Est. F\u00edsico Contado</span>'
+    + '<span class="tcard-count">' + mats.length + ' itens</span>'
+    + '<span style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--t3);display:flex;gap:14px;flex-wrap:wrap;">'
+    + '<span>Sistema: <span style="color:var(--cyan)">' + f0(totSistema) + ' kg</span></span>'
+    + '<span>F\u00edsico: <span style="color:var(--blue)">' + (totFisicos.length > 0 ? f0(totFisico) + ' kg' : '\u2014') + '</span></span>'
+    + '<span>Varia\u00e7\u00e3o: <span style="color:' + varColor + '">' + varTotalStr + '</span></span>'
+    + '<span style="color:var(--orange)">' + comVar + ' c/ varia\u00e7\u00e3o \u00b7 ' + semCont + ' sem contagem</span>'
+    + '</span>'
+    + '</div>'
+    + '<div class="twrap"><table>'
+    + '<thead><tr>'
+    + '<th>C\u00f3digo</th><th>Produto</th><th>UN</th><th>\u00c1rea</th>'
+    + '<th title="Estoque calculado pelo sistema ap\u00f3s consumo MES">Est. P\u00f3s MES (Sistema)</th>'
+    + '<th title="Estoque fisicamente contado">Est. F\u00edsico Contado</th>'
+    + '<th title="Diferen\u00e7a: F\u00edsico \u2212 Sistema">Varia\u00e7\u00e3o (kg)</th>'
+    + '<th title="Varia\u00e7\u00e3o percentual">Var. %</th>'
+    + '<th title="\u00daltima contagem f\u00edsica">\u00dalt. Contagem</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table></div></div>';
 }
 
-// ═══════════════════════════════════════════════════════════
-// HISTÓRICO
 // ═══════════════════════════════════════════════════════════
 function renderHistorico() {
   const tipo = document.getElementById('h-tipo')?.value || '';
@@ -5475,6 +5512,7 @@ function setAnalistaTab(tab, el) {
   if (tab === 'ajuste')       { fillAnalistaSelects(); renderAjusteHist(); }
   if (tab === 'entrada')      { fillAnalistaSelects(); renderAnEntradaHist(); setTimeout(()=>buscarMaterialEntrada(''), 50); }
   if (tab === 'sacaria')      { fillAnalistaSelects(); renderSacariaRapida(); renderSacariaHist(); }
+  if (tab === 'ajuste')       { renderAjusteRapido(); renderAjusteHist(); }
   if (tab === 'historico')    renderAnalistaHistorico();
 }
 
@@ -6443,6 +6481,119 @@ function clearAjuste() {
   ['aj-mat','aj-real','aj-obs','aj-resp'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
   ['aj-sistema','aj-diff'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
   document.getElementById('aj-data').value = today();
+}
+
+function renderAjusteRapido() {
+  const aF = document.getElementById('aj-rapido-area')?.value   || '';
+  const sF = (document.getElementById('aj-rapido-search')?.value || '').toLowerCase();
+
+  // Mostra materiais KGS/LTS (granel) — exclui embalagens que têm sacaria
+  let mats = DB.mat.filter(m => {
+    if (aF && m.area !== aF) return false;
+    if (sF && !m.produto.toLowerCase().includes(sF) && !(m.codigo||'').toLowerCase().includes(sF)) return false;
+    return true;
+  });
+
+  if (!mats.length) {
+    document.getElementById('aj-rapido-table').innerHTML =
+      '<div style="color:var(--t3);padding:14px;font-size:12px;">Nenhum material encontrado para este filtro.</div>';
+    return;
+  }
+
+  document.getElementById('aj-rapido-table').innerHTML = `
+    <div class="tcard"><div class="twrap"><table>
+      <thead><tr>
+        <th>Código</th><th>Produto</th><th>Área</th><th>UN</th>
+        <th>Est. Sistema (kg)</th>
+        <th>Real Contado (kg)</th>
+        <th>Diferença</th>
+        <th>Ação</th>
+      </tr></thead>
+      <tbody>${mats.map(m => {
+        const diff0 = m.peso_contagem > 0 ? m.peso_contagem - m.est_atual : null;
+        const diffCls = diff0 === null ? 'var-zero' : Math.abs(diff0) < 0.01 ? 'var-zero' : diff0 > 0 ? 'var-pos' : 'var-neg';
+        return `<tr id="aj-row-${m.id}">
+          <td class="tm">${m.codigo||'—'}</td>
+          <td class="td-desc" style="font-weight:500;max-width:180px">${m.produto}</td>
+          <td>${areaBadge(m.area)}</td>
+          <td class="tm">${m.tipo}</td>
+          <td class="tm" style="color:var(--cyan)">${fEmbTxt(m, m.est_atual)}</td>
+          <td>
+            <input type="number" min="0" step="0.001"
+              placeholder="${f(m.est_atual)}"
+              value="${m.peso_contagem > 0 ? m.peso_contagem : ''}"
+              style="width:110px;background:var(--bg1);border:1px solid var(--border2);
+                     border-radius:4px;padding:5px 8px;font-family:var(--mono);
+                     font-size:12px;color:var(--t1);outline:none;"
+              oninput="calcAjusteRapido(${m.id}, this.value)"
+              onkeydown="if(event.key==='Enter'){aplicarAjusteRapido(${m.id})}"
+              id="aj-kg-${m.id}">
+          </td>
+          <td class="${diffCls}" id="aj-rdiff-${m.id}">
+            ${diff0 !== null ? (diff0>=0?(diff0>0.01?'+':''):'') + f(diff0) + ' kg' : '—'}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-s" onclick="aplicarAjusteRapido(${m.id})"
+              id="aj-rbtn-${m.id}" ${m.peso_contagem > 0 ? '' : 'disabled style="opacity:.4;"'}>✓</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div></div>`;
+}
+
+function calcAjusteRapido(matId, valStr) {
+  const m = DB.mat.find(x => x.id === matId);
+  if (!m) return;
+  const real = parseFloat(valStr) || 0;
+  const diff = real > 0 ? real - m.est_atual : null;
+  const diffEl = document.getElementById('aj-rdiff-' + matId);
+  const btnEl  = document.getElementById('aj-rbtn-'  + matId);
+  if (diffEl) {
+    if (diff !== null) {
+      diffEl.textContent = (diff >= 0 ? (diff > 0.01 ? '+' : '') : '') + f(diff) + ' kg';
+      diffEl.className = Math.abs(diff) < 0.01 ? 'var-zero' : diff > 0 ? 'var-pos' : 'var-neg';
+    } else {
+      diffEl.textContent = '—';
+      diffEl.className = 'var-zero';
+    }
+  }
+  if (btnEl) { btnEl.disabled = real <= 0; btnEl.style.opacity = real > 0 ? '1' : '.4'; }
+}
+
+function aplicarAjusteRapido(matId) {
+  const m    = DB.mat.find(x => x.id === matId);
+  const real = parseFloat(document.getElementById('aj-kg-' + matId)?.value);
+  if (!m || isNaN(real) || real < 0) { toast('Informe o valor real contado.', 'e'); return; }
+  const diff   = real - m.est_atual;
+  const motivo = document.getElementById('aj-rapido-motivo')?.value || 'Contagem física';
+  const resp   = document.getElementById('aj-rapido-resp')?.value   || '';
+  if (Math.abs(diff) < 0.001) { toast('Nenhuma diferença detectada.', 'i'); return; }
+
+  const idx = DB.mat.findIndex(x => x.id === matId);
+  const estAntes = m.est_atual;
+  DB.mat[idx].est_atual      = real;
+  DB.mat[idx].peso_contagem  = real;
+  DB.mat[idx].data_contagem  = today();
+
+  DB.mov.push({
+    id: Date.now() + Math.random(),
+    tipo: 'ajuste', subtipo: 'manual_kg',
+    matId, codigo: m.codigo, produto: m.produto, area: m.area, tipo_un: m.tipo,
+    quantidade: Math.abs(diff), diferenca: diff,
+    est_antes: estAntes, est_depois: real,
+    motivo, responsavel: resp,
+    data: today(),
+    obs: `Ajuste manual kg: sistema ${f(estAntes)} → real ${f(real)}`,
+    ts: new Date().toISOString()
+  });
+
+  save(); updateAlertBadge(); updateCoberturasBadge();
+  const row = document.getElementById('aj-row-' + matId);
+  if (row) row.style.background = 'rgba(67,217,140,.1)';
+  document.getElementById('aj-kg-' + matId).style.borderColor = 'var(--green)';
+  const sinal = diff >= 0 ? '+' : '';
+  toast(`${m.produto}: ${sinal}${f(diff)} kg`, Math.abs(diff) > 0.01 ? 'w' : 's');
+  renderAjusteHist(); renderAnalistaDivergencias(); renderResumoDia();
 }
 
 function renderAjusteHist() {
