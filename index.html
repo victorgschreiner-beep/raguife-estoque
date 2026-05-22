@@ -638,6 +638,130 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
   .chart-row { grid-template-columns: 1fr !important; }
   .stat-row { grid-template-columns: repeat(2,1fr); }
 }
+
+/* ─── SEÇÃO OPERAÇÃO / GERÊNCIA ─── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.section-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.pill-op   { background: rgba(115,150,48,.18); color: var(--verde-claro); border: 1px solid rgba(115,150,48,.4); }
+.pill-ger  { background: rgba(74,158,107,.15); color: var(--blue); border: 1px solid rgba(74,158,107,.4); }
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 22px 0 18px;
+  position: relative;
+}
+.section-divider::after {
+  content: attr(data-label);
+  position: absolute;
+  top: -9px;
+  left: 16px;
+  background: var(--bg0);
+  padding: 0 10px;
+  font-size: 9px;
+  font-family: var(--mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--t3);
+}
+
+/* ─── TABELA BALANÇO DE ESTOQUE ─── */
+.balanco-table th.col-anterior   { color: var(--t3); }
+.balanco-table th.col-entrada     { color: var(--green); }
+.balanco-table th.col-mes         { color: var(--yellow); }
+.balanco-table th.col-sistema     { color: var(--cyan); }
+.balanco-table th.col-fisico      { color: var(--blue); }
+.balanco-table th.col-variacao    { color: var(--orange); }
+.balanco-table th.col-media       { color: var(--purple); }
+.balanco-table th.col-seguro      { color: var(--red); }
+
+.col-syst  { font-family: var(--mono); font-size: 11px; color: var(--cyan); }
+.col-fish  { font-family: var(--mono); font-size: 11px; color: var(--blue); font-weight: 600; }
+.var-pos   { font-family: var(--mono); font-size: 11px; color: var(--yellow); font-weight: 700; }
+.var-neg   { font-family: var(--mono); font-size: 11px; color: var(--red);    font-weight: 700; }
+.var-zero  { font-family: var(--mono); font-size: 11px; color: var(--t3); }
+
+/* ─── CARDS MEDIA / COBERTURA ─── */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.mc {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mc-label  { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--t3); font-family: var(--mono); }
+.mc-val    { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+.mc-sub    { font-size: 10px; color: var(--t3); }
+.mc-janela { font-size: 9px; font-family: var(--mono); padding: 2px 7px; border-radius: 10px; background: rgba(115,150,48,.12); color: var(--verde-claro); display: inline-flex; width: fit-content; margin-top: 2px; }
+
+/* ─── KPI GERENCIAL ─── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.kpi {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 14px 12px;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: var(--ease);
+}
+.kpi:hover { border-color: var(--border2); }
+.kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius) var(--radius) 0 0; }
+.kpi-label  { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--t3); font-family: var(--mono); margin-bottom: 8px; }
+.kpi-value  { font-size: 28px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+.kpi-sub    { font-size: 10px; color: var(--t3); margin-top: 5px; }
+.kpi-icon   { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 28px; opacity: .08; }
+
+/* ─── PAINEL SEGURANÇA ─── */
+.seg-edit-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--t3);
+  cursor: pointer;
+  transition: var(--ease);
+}
+.seg-edit-btn:hover { border-color: var(--verde-claro); color: var(--verde-claro); }
+
+/* ─── VARIAÇÃO BAR ─── */
+.var-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.var-bar-bg   { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; max-width: 60px; }
+.var-bar-fill { height: 100%; border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -703,8 +827,8 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
 
     <div class="sb-section">
       <div class="sb-section-label">Análise</div>
-      <div class="nav-item" onclick="goPage('relatorio',this)">
-        <span class="nav-icon">≡</span> Previsto × Realizado
+      <div class="nav-item" onclick="goPage('balanco',this)">
+        <span class="nav-icon">⊞</span> Balanço de Estoque
       </div>
       <div class="nav-item" onclick="goPage('cobertura',this)">
         <span class="nav-icon">⏱</span> Cobertura de Estoque
@@ -768,48 +892,29 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
     <!-- ══════════════════ DASHBOARD ══════════════════ -->
     <div id="page-dashboard" class="page on">
 
-      <!-- FILTROS DO DASHBOARD -->
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="fg" style="flex:2;min-width:180px;">
-          <label class="fl">Buscar Item</label>
-          <input type="text" id="dash-filter-item" class="fi" placeholder="Código ou produto..." oninput="renderDash()">
-        </div>
-        <div class="fg" style="flex:1;min-width:130px;">
-          <label class="fl">Data Início</label>
-          <input type="date" id="dash-filter-de" class="fi" onchange="renderDash()">
-        </div>
-        <div class="fg" style="flex:1;min-width:130px;">
-          <label class="fl">Data Fim</label>
-          <input type="date" id="dash-filter-ate" class="fi" onchange="renderDash()">
-        </div>
-        <div class="fg" style="flex:1;min-width:120px;">
-          <label class="fl">Área</label>
-          <select id="dash-filter-area" class="fs" onchange="renderDash()">
-            <option value="">Todas</option>
+      <!-- ── SEÇÃO GERÊNCIA ── -->
+      <div class="section-header">
+        <span class="section-pill pill-ger">◈ Visão Gerencial</span>
+        <span style="font-size:11px;color:var(--t3);font-family:var(--mono);" id="dash-filter-info"></span>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select id="dash-filter-area" class="fs" style="width:120px;" onchange="renderDash()">
+            <option value="">Todas as áreas</option>
             <option value="Aqua">AQUA</option>
             <option value="Horse">HORSE</option>
             <option value="PET">PET</option>
           </select>
+          <button class="btn btn-s btn-sm" onclick="clearDashFilters()">✕ Limpar</button>
         </div>
-        <div class="fg" style="flex:1;min-width:120px;">
-          <label class="fl">Status</label>
-          <select id="dash-filter-status" class="fs" onchange="renderDash()">
-            <option value="">Todos</option>
-            <option value="zero">Zerado</option>
-            <option value="desvio">Com Desvio</option>
-            <option value="ok">OK</option>
-          </select>
-        </div>
-        <button class="btn btn-s btn-sm" onclick="clearDashFilters()" title="Limpar filtros">✕ Limpar</button>
-        <span id="dash-filter-info" style="font-size:10px;color:var(--t3);font-family:var(--mono);align-self:center;"></span>
       </div>
 
-      <div class="stat-row" id="stat-row"></div>
+      <!-- KPIs Gerenciais -->
+      <div class="kpi-row" id="kpi-row"></div>
 
+      <!-- Charts gerenciais -->
       <div class="chart-row cw">
         <div class="chart-card">
           <div class="chart-head">
-            <span class="chart-title">Consumo: Previsto × Realizado</span>
+            <span class="chart-title">Consumo Realizado por Material (Top 10)</span>
             <span class="chart-sub" id="ch-period"></span>
           </div>
           <canvas id="ch-prevreal" height="155"></canvas>
@@ -820,35 +925,37 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
         </div>
       </div>
 
-      <div class="chart-row c2">
-        <div class="chart-card">
-          <div class="chart-head"><span class="chart-title">Top 8 — Maior Desvio de Consumo</span></div>
-          <canvas id="ch-desvio" height="190"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><span class="chart-title">Estoque por Área</span></div>
-          <canvas id="ch-area" height="190"></canvas>
-        </div>
-      </div>
-
       <div class="chart-row" style="grid-template-columns:1fr;">
         <div class="chart-card">
           <div class="chart-head">
             <span class="chart-title">⏱ Cobertura de Estoque — Dias Restantes (menor → maior risco)</span>
             <span class="chart-sub" id="ch-cobertura-sub"></span>
           </div>
-          <canvas id="ch-cobertura" height="100"></canvas>
+          <canvas id="ch-cobertura" height="90"></canvas>
         </div>
       </div>
 
-      <div class="stitle">🔴 Itens em Risco de Ruptura (cobertura crítica)</div>
+      <!-- ── DIVISOR ── -->
+      <div class="section-divider" data-label="Operação"></div>
+
+      <!-- ── SEÇÃO OPERAÇÃO ── -->
+      <div class="section-header" style="margin-bottom:12px;">
+        <span class="section-pill pill-op">⚙ Operação</span>
+        <span style="font-size:11px;color:var(--t3);">Itens que requerem atenção imediata</span>
+      </div>
+
+      <!-- Médias de Consumo Diário -->
+      <div class="stitle" style="margin-top:0;">📊 Médias de Consumo Diário</div>
+      <div id="dash-medias" style="margin-bottom:16px;"></div>
+
+      <!-- Itens em Risco de Ruptura -->
+      <div class="stitle">🔴 Itens em Risco de Ruptura (cobertura ≤ 7 dias)</div>
       <div id="dash-cobertura"></div>
 
-      <div class="stitle">Maiores Desvios de Consumo</div>
-      <div id="dash-desvios"></div>
-
-      <div class="stitle">Alertas Ativos</div>
+      <!-- Alertas Operacionais -->
+      <div class="stitle">⚠ Alertas Operacionais</div>
       <div id="dash-alerts"></div>
+
     </div>
 
     <!-- ══════════════════ ALERTAS ══════════════════ -->
@@ -1436,6 +1543,64 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
       </div>
       <div class="stitle">Últimas Contagens</div>
       <div id="contagem-hist"></div>
+    </div>
+
+    <!-- ══════════════════ BALANÇO DE ESTOQUE ══════════════════ -->
+    <div id="page-balanco" class="page">
+
+      <!-- Cabeçalho -->
+      <div style="background:rgba(115,150,48,.08);border:1px solid rgba(115,150,48,.25);border-radius:8px;padding:14px 18px;margin-bottom:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--verde-claro);margin-bottom:3px;">⊞ Balanço de Estoque</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.7;">
+            Visão completa: <strong>Estoque Anterior → +Entradas → −MES Realizado → Estoque Sistema → Estoque Físico Contado → Variação</strong>
+          </div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select id="bal-area" class="fs" style="width:130px;" onchange="renderBalanco()">
+            <option value="">Todas as áreas</option>
+            <option value="Aqua">AQUA</option>
+            <option value="Horse">HORSE</option>
+            <option value="PET">PET</option>
+          </select>
+          <select id="bal-sit" class="fs" style="width:160px;" onchange="renderBalanco()">
+            <option value="">Todos</option>
+            <option value="variacao">Com Variação</option>
+            <option value="ok">Sem Variação</option>
+            <option value="semContagem">Sem Contagem</option>
+          </select>
+          <input type="text" id="bal-search" class="fi" style="width:200px;" placeholder="Código ou produto..." oninput="renderBalanco()">
+          <button class="btn btn-s btn-sm" onclick="exportBalancoExcel()">⬇ Excel</button>
+        </div>
+      </div>
+
+      <!-- Totalizadores do balanço -->
+      <div id="bal-totais" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
+
+      <!-- Tabela principal -->
+      <div id="balanco-table"></div>
+
+      <!-- ── DIVISOR: Médias e Segurança ── -->
+      <div class="section-divider" data-label="Média de Consumo e Estoque de Segurança" style="margin-top:24px;"></div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--t2);">Janela de cálculo:</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+          <input type="radio" name="bal-janela" value="7"  onchange="setBaJanela(7)"  style="accent-color:var(--verde-claro)"> 7 dias
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+          <input type="radio" name="bal-janela" value="15" onchange="setBaJanela(15)" style="accent-color:var(--verde-claro)"> 15 dias
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+          <input type="radio" name="bal-janela" value="ambos" checked onchange="setBaJanela('ambos')" style="accent-color:var(--verde-claro)"> Ambas
+        </label>
+        <span style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-left:8px;">
+          Estoque Segurança = Média × Lead Time × 1.5 (ou manual)
+        </span>
+      </div>
+
+      <div id="media-table"></div>
+
     </div>
 
     <!-- ══════════════════ RELATÓRIO PREVISTO × REALIZADO ══════════════════ -->
@@ -2440,6 +2605,296 @@ function calcDiasRestantes(m) {
   return m.est_atual / media;
 }
 
+// ─── MÉDIA COM JANELA ESPECÍFICA ──────────────────────────
+// Permite calcular média para 7d ou 15d independente da config global
+function calcMediaDiariaJ(m, janela) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - janela);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  const movs = DB.mov.filter(mv =>
+    mv.tipo === 'consumo' && mv.matId === m.id && mv.data >= cutoffStr
+  );
+  if (movs.length > 0) {
+    const total = movs.reduce((s, mv) => s + (mv.cons_realizado || 0), 0);
+    return total / janela;
+  }
+  if (m.cons_realizado > 0) {
+    const diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+    return m.cons_realizado / diasMes;
+  }
+  return 0;
+}
+
+// ─── ESTOQUE DE SEGURANÇA CALCULADO ──────────────────────
+// = Média diária (7d) × Lead Time × 1.5
+// Usa est_seguro_manual se definido pelo usuário
+function calcEstoqueSeguro(m) {
+  if (m.est_seguro_manual != null && m.est_seguro_manual > 0) return m.est_seguro_manual;
+  const media = calcMediaDiariaJ(m, 7);
+  const lead  = m.leadtime || DB.config.leadtimePadrao || 7;
+  return media * lead * 1.5;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BALANÇO DE ESTOQUE
+// ═══════════════════════════════════════════════════════════
+
+function renderBalanco() {
+  const aF = document.getElementById('bal-area')?.value || '';
+  const sF = (document.getElementById('bal-search')?.value || '').toLowerCase();
+  const sit = document.getElementById('bal-sit')?.value || '';
+
+  let mats = DB.mat.filter(m => {
+    if (aF && m.area !== aF) return false;
+    if (sF && !m.produto.toLowerCase().includes(sF) && !(m.codigo||'').toLowerCase().includes(sF)) return false;
+    const diff = diffRealSistema(m);
+    const temContagem = estRealContado(m) > 0;
+    if (sit === 'variacao'    && !(temContagem && Math.abs(diff) > 0.1)) return false;
+    if (sit === 'ok'          && !(temContagem && Math.abs(diff) <= 0.1)) return false;
+    if (sit === 'semContagem' && temContagem) return false;
+    return true;
+  });
+
+  // Totalizadores
+  const totAnterior  = mats.reduce((s,m) => s + (m.est_anterior||0), 0);
+  const totEntrada   = mats.reduce((s,m) => s + (m.entrada||0), 0);
+  const totMes       = mats.reduce((s,m) => s + (m.cons_realizado||0), 0);
+  const totSistema   = mats.reduce((s,m) => s + (m.est_atual||0), 0);
+  const totFisico    = mats.reduce((s,m) => s + (estRealContado(m)||0), 0);
+  const totVariacao  = mats.reduce((s,m) => {
+    const tc = estRealContado(m);
+    if (!tc) return s;
+    return s + (tc - m.est_atual);
+  }, 0);
+  const comVar = mats.filter(m => estRealContado(m) > 0 && Math.abs(diffRealSistema(m)) > 0.1).length;
+  const semCont = mats.filter(m => !estRealContado(m)).length;
+
+  const totaisEl = document.getElementById('bal-totais');
+  if (totaisEl) totaisEl.innerHTML = `
+    <div class="sc" style="flex:1;min-width:120px;padding:10px 14px;">
+      <div class="sc-label">Est. Anterior</div>
+      <div class="sc-value" style="font-size:18px;color:var(--t2)">${f0(totAnterior)}</div>
+      <div class="sc-sub">kg</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:120px;padding:10px 14px;">
+      <div class="sc-label">+Entradas</div>
+      <div class="sc-value" style="font-size:18px;color:var(--green)">+${f0(totEntrada)}</div>
+      <div class="sc-sub">kg</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:120px;padding:10px 14px;">
+      <div class="sc-label">−MES Realizado</div>
+      <div class="sc-value" style="font-size:18px;color:var(--yellow)">−${f0(totMes)}</div>
+      <div class="sc-sub">kg</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:120px;padding:10px 14px;">
+      <div class="sc-label">Est. Sistema</div>
+      <div class="sc-value" style="font-size:18px;color:var(--cyan)">${f0(totSistema)}</div>
+      <div class="sc-sub">kg</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:120px;padding:10px 14px;">
+      <div class="sc-label">Est. Físico Contado</div>
+      <div class="sc-value" style="font-size:18px;color:var(--blue)">${totFisico > 0 ? f0(totFisico) : '—'}</div>
+      <div class="sc-sub">kg</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:120px;padding:10px 14px;">
+      <div class="sc-label">Variação Total</div>
+      <div class="sc-value" style="font-size:18px;color:${Math.abs(totVariacao)<0.1?'var(--t3)':totVariacao>0?'var(--yellow)':'var(--red)'}">
+        ${totFisico > 0 ? (totVariacao >= 0 ? '+' : '') + f0(totVariacao) : '—'}
+      </div>
+      <div class="sc-sub">${comVar} itens com variação · ${semCont} sem contagem</div>
+    </div>
+  `;
+
+  // Tabela balanço
+  document.getElementById('balanco-table').innerHTML = `
+    <div class="tcard">
+      <div class="tcard-head">
+        <span class="tcard-title balanco-table">Balanço de Estoque</span>
+        <span class="tcard-count">${mats.length} itens</span>
+        <span style="margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--t3);">
+          <span style="color:var(--cyan)">◉ Sistema</span> = Anterior + Entrada − MES &nbsp;|&nbsp;
+          <span style="color:var(--blue)">◉ Físico</span> = Contagem Real &nbsp;|&nbsp;
+          <span style="color:var(--orange)">△ Variação</span> = Físico − Sistema
+        </span>
+      </div>
+      <div class="twrap"><table class="balanco-table">
+        <thead><tr>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>UN</th>
+          <th>Área</th>
+          <th class="col-anterior" title="Estoque do período anterior">Est. Anterior</th>
+          <th class="col-entrada"  title="Entradas de material recebidas">+ Entrada</th>
+          <th class="col-mes"      title="Consumo realizado pelo MES">− MES Real.</th>
+          <th class="col-sistema"  title="Estoque calculado pelo sistema = Anterior + Entrada − MES">Est. Sistema</th>
+          <th class="col-fisico"   title="Estoque fisicamente contado">Est. Físico</th>
+          <th class="col-variacao" title="Variação = Físico − Sistema. Positivo: sobra. Negativo: falta.">Variação</th>
+          <th class="col-variacao" title="Variação em percentual">Var. %</th>
+        </tr></thead>
+        <tbody>${mats.map(m => {
+          const fisico   = estRealContado(m);
+          const temCont  = fisico > 0;
+          const variacao = temCont ? (fisico - m.est_atual) : null;
+          const varPct   = (temCont && m.est_atual > 0) ? (variacao / m.est_atual) * 100 : null;
+          const varCls   = variacao === null ? 'var-zero'
+            : Math.abs(variacao) < 0.1 ? 'var-zero'
+            : variacao > 0 ? 'var-pos' : 'var-neg';
+          const barW = varPct !== null ? Math.min(100, Math.abs(varPct)) : 0;
+          const barC = variacao === null ? 'var(--border)'
+            : Math.abs(variacao) < 0.1 ? 'var(--t3)'
+            : variacao > 0 ? 'var(--yellow)' : 'var(--red)';
+          return `<tr>
+            <td class="tm">${m.codigo || '—'}</td>
+            <td class="td-desc" style="max-width:180px">${m.produto}</td>
+            <td class="tm">${m.tipo}</td>
+            <td>${areaBadge(m.area)}</td>
+            <td class="tm">${f(m.est_anterior)}</td>
+            <td class="tm" style="color:var(--green)">${(m.entrada||0) > 0 ? '+'+f(m.entrada) : '—'}</td>
+            <td class="tm" style="color:var(--yellow)">${(m.cons_realizado||0) > 0 ? '−'+f(m.cons_realizado) : '—'}</td>
+            <td class="col-syst">${f(m.est_atual)}</td>
+            <td class="${temCont ? 'col-fish' : 'tm'}" style="${!temCont?'color:var(--t3)':''}">${temCont ? f(fisico) : '—'}</td>
+            <td class="${varCls}">
+              <div class="var-bar-wrap">
+                ${variacao !== null ? (variacao >= 0 ? (Math.abs(variacao)>0.1?'+':'') : '') + f(variacao) : '—'}
+                ${varPct !== null ? `<div class="var-bar-bg"><div class="var-bar-fill" style="width:${barW}%;background:${barC}"></div></div>` : ''}
+              </div>
+            </td>
+            <td class="${varCls}">${varPct !== null ? (varPct >= 0 ? '+' : '') + f(varPct, 1) + '%' : '—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>`;
+
+  renderMediaTable();
+}
+
+let _baJanelaState = 'ambos';
+function setBaJanela(v) { _baJanelaState = v; renderMediaTable(); }
+
+function renderMediaTable() {
+  const aF = document.getElementById('bal-area')?.value || '';
+  const sF = (document.getElementById('bal-search')?.value || '').toLowerCase();
+  let mats = DB.mat.filter(m => {
+    if (aF && m.area !== aF) return false;
+    if (sF && !m.produto.toLowerCase().includes(sF) && !(m.codigo||'').toLowerCase().includes(sF)) return false;
+    return true;
+  });
+
+  const mostrar7  = _baJanelaState === 'ambos' || _baJanelaState === 7  || _baJanelaState === '7';
+  const mostrar15 = _baJanelaState === 'ambos' || _baJanelaState === 15 || _baJanelaState === '15';
+
+  const diasAlerta = DB.config.alertaDias || 15;
+
+  document.getElementById('media-table').innerHTML = `
+    <div class="tcard">
+      <div class="tcard-head">
+        <span class="tcard-title">📊 Média de Consumo Diário e Estoque de Segurança</span>
+        <span class="tcard-count">${mats.length} itens</span>
+        <span style="margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--t3);">
+          Segurança = Média 7d × Lead Time × 1.5 (ajustável manualmente)
+        </span>
+      </div>
+      <div class="twrap"><table>
+        <thead><tr>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>Área</th>
+          <th>Est. Atual (kg)</th>
+          ${mostrar7  ? '<th class="col-media" title="Média de consumo nos últimos 7 dias">Média 7d (kg/dia)</th><th title="Dias de cobertura com média 7d">Dias 7d</th>' : ''}
+          ${mostrar15 ? '<th class="col-media" title="Média de consumo nos últimos 15 dias">Média 15d (kg/dia)</th><th title="Dias de cobertura com média 15d">Dias 15d</th>' : ''}
+          <th title="Lead time de reposição em dias">Lead Time</th>
+          <th class="col-seguro" title="Estoque de segurança = Média 7d × Lead Time × 1.5. Clique para editar.">Est. Seguro</th>
+          <th>Situação</th>
+        </tr></thead>
+        <tbody>${mats.map(m => {
+          const m7   = calcMediaDiariaJ(m, 7);
+          const m15  = calcMediaDiariaJ(m, 15);
+          const d7   = m7 > 0 ? m.est_atual / m7 : null;
+          const d15  = m15 > 0 ? m.est_atual / m15 : null;
+          const lead = m.leadtime || DB.config.leadtimePadrao || 7;
+          const seg  = calcEstoqueSeguro(m);
+          const isManual = m.est_seguro_manual != null && m.est_seguro_manual > 0;
+          const abaixoSeg = seg > 0 && m.est_atual < seg;
+          const dMin = (d7 !== null && d15 !== null) ? Math.min(d7, d15) : (d7 ?? d15);
+          const sit = m.est_atual <= 0 ? 'zero'
+            : dMin === null    ? 'semMedia'
+            : dMin <= 7        ? 'critico'
+            : dMin <= diasAlerta ? 'atencao'
+            : 'ok';
+          const sitBadge = {
+            zero:     '<span class="badge b-zero">ZERADO</span>',
+            semMedia: '<span class="badge" style="background:rgba(77,142,247,.1);color:var(--t3)">SEM HISTÓRICO</span>',
+            critico:  '<span class="badge b-crit">CRÍTICO</span>',
+            atencao:  '<span class="badge b-warn">ATENÇÃO</span>',
+            ok:       '<span class="badge b-ok">OK</span>',
+          }[sit];
+          return `<tr>
+            <td class="tm">${m.codigo||'—'}</td>
+            <td class="td-desc">${m.produto}</td>
+            <td>${areaBadge(m.area)}</td>
+            <td class="tm" style="color:var(--cyan)">${f(m.est_atual)}</td>
+            ${mostrar7  ? `
+              <td class="tm" style="color:var(--orange);font-weight:${m7>0?'700':'400'}">${m7>0?f(m7,3):'—'}</td>
+              <td>${diasBadge(d7)}</td>` : ''}
+            ${mostrar15 ? `
+              <td class="tm" style="color:var(--blue);font-weight:${m15>0?'700':'400'}">${m15>0?f(m15,3):'—'}</td>
+              <td>${diasBadge(d15)}</td>` : ''}
+            <td class="tm" style="color:var(--t3)">${lead}d</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="tm" style="color:${abaixoSeg?'var(--red)':'var(--t2)'}${isManual?';text-decoration:underline dotted':''}" title="${isManual?'Manual':'Calculado auto'}">${seg>0?f(seg,0):'—'}</span>
+                ${isManual ? '<span style="font-size:8px;color:var(--blue);font-family:var(--mono)">MAN</span>' : ''}
+                <button class="seg-edit-btn" onclick="editarSeguro(${m.id})" title="Editar estoque de segurança">✏</button>
+              </div>
+            </td>
+            <td>${sitBadge}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function editarSeguro(id) {
+  const m = DB.mat.find(x => x.id === id);
+  if (!m) return;
+  const auto = calcEstoqueSeguro(m);
+  const val = prompt(
+    `Estoque de Segurança — ${m.produto}\nCalculado automaticamente: ${f(auto)} kg\n\nInforme o valor manual (ou 0 para usar automático):`,
+    m.est_seguro_manual || ''
+  );
+  if (val === null) return;
+  const num = parseFloat(val);
+  const idx = DB.mat.findIndex(x => x.id === id);
+  DB.mat[idx].est_seguro_manual = (!isNaN(num) && num > 0) ? num : null;
+  save();
+  renderMediaTable();
+  toast(num > 0 ? `Estoque seguro de ${m.produto} definido em ${f(num)} kg (manual)` : `Estoque seguro de ${m.produto} voltou ao automático`, 'i');
+}
+
+function exportBalancoExcel() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca XLSX não disponível.', 'e'); return; }
+  const aF = document.getElementById('bal-area')?.value || '';
+  const mats = DB.mat.filter(m => !aF || m.area === aF);
+  const rows = [['Código','Produto','UN','Área','Est.Anterior','Entrada','MES Realizado','Est.Sistema','Est.Físico','Variação (kg)','Var %','Média 7d','Média 15d','Est.Seguro','Lead Time']];
+  mats.forEach(m => {
+    const fisico = estRealContado(m);
+    const variacao = fisico > 0 ? fisico - m.est_atual : null;
+    const varPct = (variacao !== null && m.est_atual > 0) ? ((variacao / m.est_atual)*100).toFixed(1)+'%' : '—';
+    rows.push([
+      m.codigo||'', m.produto, m.tipo, m.area,
+      m.est_anterior||0, m.entrada||0, m.cons_realizado||0, m.est_atual,
+      fisico||'', variacao !== null ? variacao.toFixed(2) : '', varPct,
+      calcMediaDiariaJ(m,7).toFixed(3), calcMediaDiariaJ(m,15).toFixed(3),
+      calcEstoqueSeguro(m).toFixed(1), m.leadtime || DB.config.leadtimePadrao || 7
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Balanço');
+  XLSX.writeFile(wb, `balanco_estoque_${today()}.xlsx`);
+  toast('Excel exportado com sucesso!', 's');
+}
+
 // Cor/badge para dias restantes
 function diasBadge(dias) {
   if (dias === null) return '<span class="badge" style="background:rgba(77,142,247,.1);color:var(--t3)">—</span>';
@@ -2499,6 +2954,7 @@ const PAGE_TITLES = {
   analista: 'Painel do Analista',
   consumo: 'Lançar Consumo',
   entrada: 'Registrar Entrada', contagem: 'Contagem Física',
+  balanco: 'Balanço de Estoque',
   relatorio: 'Previsto × Realizado', cobertura: 'Cobertura de Estoque',
   historico: 'Histórico',
   'novo-material': 'Novo Material',
@@ -2517,6 +2973,7 @@ function goPage(name, el) {
     dashboard: renderDash, alertas: renderAlertas,
     analista: () => { fillAnalistaSelects(); renderAnalistaDivergencias(); renderResumoDia(); renderSacariaRapida(); },
     relatorio: renderRelatorio,
+    balanco: renderBalanco,
     cobertura: renderCobertura,
     'novo-material': () => { novoMaterialLimpar(); renderCadRecentes(); },
     materiais: () => { setMatTab('lista', document.querySelector('#page-materiais .tab')); }, consumo: renderConsumoHist,
@@ -2561,185 +3018,155 @@ function fillSelects() {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════
 function renderDash() {
-  // ── Lê filtros ────────────────────────────────────────
-  const filterItem   = (document.getElementById('dash-filter-item')?.value   || '').toLowerCase().trim();
-  const filterDe     =  document.getElementById('dash-filter-de')?.value     || '';
-  const filterAte    =  document.getElementById('dash-filter-ate')?.value    || '';
-  const filterAreaF  =  document.getElementById('dash-filter-area')?.value   || '';
-  const filterStatus =  document.getElementById('dash-filter-status')?.value || '';
-
-  // Materiais filtrados
+  const filterAreaF = document.getElementById('dash-filter-area')?.value || '';
   let mats = getMats(filterAreaF || undefined);
 
-  if (filterItem) {
-    mats = mats.filter(m =>
-      m.produto.toLowerCase().includes(filterItem) ||
-      (m.codigo || '').toLowerCase().includes(filterItem)
-    );
-  }
-  if (filterStatus === 'zero')   mats = mats.filter(m => m.est_atual <= 0);
-  if (filterStatus === 'desvio') mats = mats.filter(m => m.cons_previsto > 0 && Math.abs(m.desvio) > 0.01);
-  if (filterStatus === 'ok')     mats = mats.filter(m => m.est_atual > 0 && Math.abs(m.desvio) <= 0.01);
-
-  // Movimentações filtradas por data
-  let movsFiltrados = DB.mov;
-  if (filterDe)  movsFiltrados = movsFiltrados.filter(mv => mv.data >= filterDe);
-  if (filterAte) movsFiltrados = movsFiltrados.filter(mv => mv.data <= filterAte);
-  if (filterAreaF) movsFiltrados = movsFiltrados.filter(mv => mv.area === filterAreaF);
-
-  // Info do filtro
-  const hasFilter = filterItem || filterDe || filterAte || filterAreaF || filterStatus;
   const infoEl = document.getElementById('dash-filter-info');
-  if (infoEl) infoEl.textContent = hasFilter ? `${mats.length} material(is) filtrado(s)` : '';
+  if (infoEl) infoEl.textContent = filterAreaF ? `${mats.length} materiais · ${filterAreaF.toUpperCase()}` : '';
 
-  const total = mats.length;
-  const zerados = mats.filter(m => m.est_atual <= 0).length;
-  const comDesvio = mats.filter(m => m.cons_previsto > 0 && Math.abs(m.desvio) > 0.01).length;
-  const divergentes = mats.filter(m => {
-    const d = diffRealSistema(m);
-    return m.est_atual > 0 && Math.abs(pct(d, m.est_atual)) > DB.config.divPct;
-  }).length;
-  const totalPrevisto = mats.reduce((s,m) => s + m.cons_previsto, 0);
-  const totalRealizado = mats.reduce((s,m) => s + m.cons_realizado, 0);
+  const total        = mats.length;
+  const zerados      = mats.filter(m => m.est_atual <= 0).length;
   const totalEstoque = mats.reduce((s,m) => s + m.est_atual, 0);
+  const diasAlerta   = DB.config.alertaDias || 15;
 
-  // Média diária e cobertura
-  const diasAlerta = DB.config.alertaDias || 15;
-  const comCoberturasCritica = mats.filter(m => {
+  const criticos = mats.filter(m => {
     const d = calcDiasRestantes(m);
     return d !== null && d <= 7 && m.est_atual > 0;
   }).length;
-  const comCoberturasAtencao = mats.filter(m => {
+  const atencao = mats.filter(m => {
     const d = calcDiasRestantes(m);
     return d !== null && d > 7 && d <= diasAlerta && m.est_atual > 0;
   }).length;
-  const mediaGeral = mats.reduce((s,m) => s + calcMediaDiaria(m), 0);
+  const comVariacao = mats.filter(m => {
+    const diff = diffRealSistema(m);
+    return estRealContado(m) > 0 && Math.abs(diff) > 0.1;
+  }).length;
+  const mediaGeral7  = mats.reduce((s,m) => s + calcMediaDiariaJ(m,7), 0);
+  const mediaGeral15 = mats.reduce((s,m) => s + calcMediaDiariaJ(m,15), 0);
 
-  document.getElementById('stat-row').innerHTML = `
-    <div class="sc"><div class="sc-accent" style="background:var(--cyan)"></div>
-      <div class="sc-label">Materiais</div>
-      <div class="sc-value c-cyan">${total}</div>
-      <div class="sc-sub">cadastrados</div>
-      <div class="sc-icon">☰</div>
+  // KPIs Gerenciais
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi">
+      <div class="kpi-accent" style="background:var(--cyan)"></div>
+      <div class="kpi-label">Estoque Total</div>
+      <div class="kpi-value c-cyan">${f0(totalEstoque)}</div>
+      <div class="kpi-sub">kg no sistema</div>
+      <div class="kpi-icon">⊙</div>
     </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--blue)"></div>
-      <div class="sc-label">Estoque Total (kg)</div>
-      <div class="sc-value c-blue">${f0(totalEstoque)}</div>
-      <div class="sc-sub">kg no sistema</div>
-      <div class="sc-icon">⊙</div>
+    <div class="kpi">
+      <div class="kpi-accent" style="background:var(--red)"></div>
+      <div class="kpi-label">Cobertura Crítica</div>
+      <div class="kpi-value c-red">${criticos}</div>
+      <div class="kpi-sub">≤ 7 dias restantes</div>
+      <div class="kpi-icon">⏱</div>
     </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--green)"></div>
-      <div class="sc-label">Consumo Previsto</div>
-      <div class="sc-value c-green">${f0(totalPrevisto)}</div>
-      <div class="sc-sub">kg (MES)</div>
-      <div class="sc-icon">▷</div>
+    <div class="kpi">
+      <div class="kpi-accent" style="background:var(--yellow)"></div>
+      <div class="kpi-label">Cobertura Atenção</div>
+      <div class="kpi-value c-yellow">${atencao}</div>
+      <div class="kpi-sub">≤ ${diasAlerta} dias restantes</div>
+      <div class="kpi-icon">◔</div>
     </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--blue)"></div>
-      <div class="sc-label">Consumo Realizado</div>
-      <div class="sc-value c-blue">${f0(totalRealizado)}</div>
-      <div class="sc-sub">kg (real)</div>
-      <div class="sc-icon">✓</div>
+    <div class="kpi">
+      <div class="kpi-accent" style="background:var(--purple)"></div>
+      <div class="kpi-label">Zerados</div>
+      <div class="kpi-value c-purple">${zerados}</div>
+      <div class="kpi-sub">sem estoque</div>
+      <div class="kpi-icon">○</div>
     </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--orange)"></div>
-      <div class="sc-label">Com Desvio</div>
-      <div class="sc-value c-orange">${comDesvio}</div>
-      <div class="sc-sub">previsto ≠ realizado</div>
-      <div class="sc-icon">△</div>
+    <div class="kpi">
+      <div class="kpi-accent" style="background:var(--orange)"></div>
+      <div class="kpi-label">Com Variação Física</div>
+      <div class="kpi-value c-orange">${comVariacao}</div>
+      <div class="kpi-sub">físico ≠ sistema</div>
+      <div class="kpi-icon">△</div>
     </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--yellow)"></div>
-      <div class="sc-label">Divergência Real</div>
-      <div class="sc-value c-yellow">${divergentes}</div>
-      <div class="sc-sub">real ≠ sistema</div>
-      <div class="sc-icon">⊘</div>
-    </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--purple)"></div>
-      <div class="sc-label">Zerados</div>
-      <div class="sc-value c-purple">${zerados}</div>
-      <div class="sc-sub">sem estoque</div>
-      <div class="sc-icon">○</div>
-    </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--red)"></div>
-      <div class="sc-label">Cobertura Crítica</div>
-      <div class="sc-value c-red">${comCoberturasCritica}</div>
-      <div class="sc-sub">≤ 7 dias restantes</div>
-      <div class="sc-icon">⏱</div>
-    </div>
-    <div class="sc"><div class="sc-accent" style="background:var(--yellow)"></div>
-      <div class="sc-label">Cobertura Atenção</div>
-      <div class="sc-value c-yellow">${comCoberturasAtencao}</div>
-      <div class="sc-sub">≤ ${diasAlerta} dias restantes</div>
-      <div class="sc-icon">◔</div>
+    <div class="kpi">
+      <div class="kpi-accent" style="background:var(--cyan)"></div>
+      <div class="kpi-label">Materiais</div>
+      <div class="kpi-value" style="color:var(--t2)">${total}</div>
+      <div class="kpi-sub">cadastrados</div>
+      <div class="kpi-icon">☰</div>
     </div>
   `;
 
-  renderDashCharts(mats, movsFiltrados);
-  renderDashDesvios(mats);
+  // Médias de consumo diário operacional
+  const dashMediasEl = document.getElementById('dash-medias');
+  if (dashMediasEl) {
+    const top7  = [...mats].filter(m => calcMediaDiariaJ(m,7) > 0)
+      .sort((a,b) => calcMediaDiariaJ(b,7) - calcMediaDiariaJ(a,7)).slice(0,5);
+    const top15 = [...mats].filter(m => calcMediaDiariaJ(m,15) > 0)
+      .sort((a,b) => calcMediaDiariaJ(b,15) - calcMediaDiariaJ(a,15)).slice(0,5);
+
+    dashMediasEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="mc">
+          <div class="mc-label">Consumo Médio/dia (7d)</div>
+          <div class="mc-val" style="color:var(--verde-claro)">${f(mediaGeral7,1)} <span style="font-size:12px;color:var(--t3)">kg/dia</span></div>
+          <div class="mc-sub">Total do portfólio</div>
+          <div class="mc-janela">Janela 7 dias</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">Consumo Médio/dia (15d)</div>
+          <div class="mc-val" style="color:var(--blue)">${f(mediaGeral15,1)} <span style="font-size:12px;color:var(--t3)">kg/dia</span></div>
+          <div class="mc-sub">Total do portfólio</div>
+          <div class="mc-janela">Janela 15 dias</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">Top 3 Maior Consumo (7d)</div>
+          ${top7.slice(0,3).map(m => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);">
+              <span style="font-size:11px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${m.produto}</span>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--orange);font-weight:700;">${f(calcMediaDiariaJ(m,7),1)}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  renderDashCharts(mats);
   renderDashAlerts(mats);
   renderDashCobertura(mats);
 }
 
-function renderDashCharts(mats, movsFiltrados) {
+function clearDashFilters() {
+  const el = document.getElementById('dash-filter-area');
+  if (el) el.value = '';
+  renderDash();
+}function renderDashCharts(mats, movsFiltrados) {
   movsFiltrados = movsFiltrados || DB.mov;
-  // Chart 1 — Previsto x Realizado top 10
-  const comConsumo = mats.filter(m => m.cons_previsto > 0 || m.cons_realizado > 0)
-    .sort((a,b) => (b.cons_previsto + b.cons_realizado) - (a.cons_previsto + a.cons_realizado))
+
+  // Chart 1 — Top 10 Consumo Realizado
+  const comConsumo = mats.filter(m => m.cons_realizado > 0)
+    .sort((a,b) => b.cons_realizado - a.cons_realizado)
     .slice(0, 10);
   const labels = comConsumo.map(m => m.produto.slice(0,14));
   mkChart('ch-prevreal', 'bar', {
     labels,
     datasets: [
-      { label: 'Previsto (MES)', data: comConsumo.map(m => m.cons_previsto), backgroundColor: 'rgba(2,79,43,.75)', borderRadius: 3 },
-      { label: 'Realizado',      data: comConsumo.map(m => m.cons_realizado), backgroundColor: 'rgba(115,150,48,.8)', borderRadius: 3 }
+      { label: 'Realizado (MES)', data: comConsumo.map(m => m.cons_realizado), backgroundColor: 'rgba(115,150,48,.8)', borderRadius: 3 }
     ]
   }, {
-    plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 }, color: '#7aaa8a' } } },
+    plugins: { legend: { display: false } },
     scales: chartScales()
   });
   document.getElementById('ch-period').textContent = `${comConsumo.length} itens com consumo`;
 
   // Chart 2 — Status donut
-  const ok = mats.filter(m => m.est_atual > 0 && m.desvio === 0).length;
-  const dev = mats.filter(m => Math.abs(m.desvio) > 0.01).length;
+  const ok  = mats.filter(m => m.est_atual > 0 && calcDiasRestantes(m) === null || (calcDiasRestantes(m) !== null && calcDiasRestantes(m) > 15)).length;
+  const at  = mats.filter(m => { const d = calcDiasRestantes(m); return d !== null && d > 7 && d <= 15; }).length;
+  const cr  = mats.filter(m => { const d = calcDiasRestantes(m); return d !== null && d <= 7 && m.est_atual > 0; }).length;
   const zer = mats.filter(m => m.est_atual <= 0).length;
-  const div = mats.filter(m => { const d = diffRealSistema(m); return m.est_atual > 0 && Math.abs(pct(d, m.est_atual)) > DB.config.divPct; }).length;
   mkChart('ch-status', 'doughnut', {
-    labels: ['OK', 'Desvio Consumo', 'Divergência Real', 'Zerado'],
-    datasets: [{ data: [ok, dev, div, zer], backgroundColor: ['#739630','#c8873a','#b8a020','#8a5fb5'], borderWidth: 0 }]
+    labels: ['OK', 'Atenção', 'Crítico', 'Zerado'],
+    datasets: [{ data: [ok, at, cr, zer], backgroundColor: ['#739630','#b8a020','#d94040','#8a5fb5'], borderWidth: 0 }]
   }, { cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 9, font: { size: 9 }, padding: 8, color: '#7aaa8a' } } } });
 
-  // Chart 3 — Top desvios
-  const topDesvio = mats.filter(m => Math.abs(m.desvio) > 0.01)
-    .sort((a,b) => Math.abs(b.desvio) - Math.abs(a.desvio)).slice(0,8);
-  mkChart('ch-desvio', 'bar', {
-    labels: topDesvio.map(m => m.produto.slice(0,14)),
-    datasets: [{
-      label: 'Desvio (kg)',
-      data: topDesvio.map(m => m.desvio),
-      backgroundColor: topDesvio.map(m => m.desvio > 0 ? 'rgba(217,64,64,.75)' : 'rgba(115,150,48,.75)'),
-      borderRadius: 4
-    }]
-  }, {
-    plugins: { legend: { display: false } },
-    scales: chartScales(true, false)
-  });
-
-  // Chart 4 — Estoque por área
-  const areas = ['Aqua', 'Horse', 'PET'];
-  const estArea = areas.map(a => DB.mat.filter(m => m.area === a).reduce((s,m) => s + m.est_atual, 0));
-  mkChart('ch-area', 'bar', {
-    labels: ['AQUA', 'HORSE', 'PET'],
-    datasets: [{ data: estArea, backgroundColor: ['rgba(2,79,43,.85)','rgba(115,150,48,.85)','rgba(102,102,102,.75)'], borderRadius: 6 }]
-  }, {
-    plugins: { legend: { display: false } },
-    scales: chartScales(true, false)
-  });
-
-  // Chart 5 — Top 8 cobertura (dias restantes) — menores valores primeiro
+  // Chart 3 — Top 8 cobertura (dias restantes)
   const comMedia = mats
     .map(m => ({ m, dias: calcDiasRestantes(m) }))
     .filter(x => x.dias !== null && x.dias >= 0)
     .sort((a, b) => a.dias - b.dias)
-    .slice(0, 8);
+    .slice(0, 10);
   mkChart('ch-cobertura', 'bar', {
     labels: comMedia.map(x => x.m.produto.slice(0, 14)),
     datasets: [{
@@ -2755,7 +3182,7 @@ function renderDashCharts(mats, movsFiltrados) {
     plugins: { legend: { display: false } },
     scales: {
       ...chartScales(true, false),
-      y: { ...chartScales(false, false).y, title: { display: true, text: 'dias', color: document.body.classList.contains('lm') ? 'var(--t3)' : '#3d6b50', font: { size: 9 } } }
+      y: { ...chartScales(false, false).y, title: { display: true, text: 'dias', color: '#3d6b50', font: { size: 9 } } }
     }
   });
 }
@@ -4654,16 +5081,6 @@ document.getElementById('modal-peso-emb').addEventListener('click', function(e) 
 
 
 
-function clearDashFilters() {
-  ['dash-filter-item','dash-filter-de','dash-filter-ate'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  ['dash-filter-area','dash-filter-status'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  renderDash();
-}
-
 function sincronizarSupabase() {
   toast('Sincronizando com a nuvem...', 'i');
   sbInit().then(() => {
@@ -6530,10 +6947,7 @@ document.addEventListener('DOMContentLoaded', () => {
    document.getElementById('ane-data'), document.getElementById('an-hist-data'),
    document.getElementById('sac-data'), document.getElementById('an-resumo-data')]
     .forEach(el => { if (el) el.value = today(); });
-  // Dashboard: padrão sem filtro (mostra tudo)
-  const df = document.getElementById('dash-filter-de');
-  const da = document.getElementById('dash-filter-ate');
-  if (da) da.value = today();
+  // Dashboard: padrão sem filtro
   document.getElementById('cfg-min').value    = DB.config.min    || 500;
   document.getElementById('cfg-seg').value    = DB.config.seg    || 2000;
   document.getElementById('cfg-dev').value    = DB.config.devPct || 10;
