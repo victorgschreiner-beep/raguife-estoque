@@ -2469,14 +2469,21 @@ async function sbInit() {
       await sbUpsert();
       console.log('[Supabase] Dados iniciais enviados.');
     } else {
-      // Carrega do Supabase
+      // Carrega do Supabase — só aceita se versão for compatível
       const remote = rows[0].dados;
       const remoteDB = typeof remote === 'string' ? JSON.parse(remote) : remote;
-      DB = remoteDB;
-      // Atualiza cache local
-      localStorage.setItem('raguife_db', JSON.stringify(DB));
-      localStorage.setItem('raguife_db_version', DB_VERSION);
-      console.log('[Supabase] Dados carregados da nuvem.');
+      const remoteVer = remoteDB._version || 0;
+      if (remoteVer < DB_VERSION) {
+        // Dados do Supabase são de versão antiga — sobe os dados novos
+        console.log('[Supabase] Versão remota antiga — sobrescrevendo com dados novos.');
+        await sbUpsert();
+      } else {
+        DB = remoteDB;
+        // Atualiza cache local
+        localStorage.setItem('raguife_db', JSON.stringify(DB));
+        localStorage.setItem('raguife_db_version', DB_VERSION);
+        console.log('[Supabase] Dados carregados da nuvem.');
+      }
     }
     sbStatusUI(true);
   } catch(e) {
@@ -2493,7 +2500,7 @@ async function sbUpsert() {
     await fetch(`${SB_URL}/rest/v1/${SB_TABLE}`, {
       method: 'POST',
       headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ id: SB_ROW_ID, dados: JSON.stringify(DB), atualizado_em: new Date().toISOString() })
+      body: JSON.stringify({ id: SB_ROW_ID, dados: JSON.stringify({...DB, _version: DB_VERSION}), atualizado_em: new Date().toISOString() })
     });
   } catch(e) {
     console.warn('[Supabase] Falha ao salvar:', e.message);
