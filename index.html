@@ -2232,6 +2232,7 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
         </div>
         <div class="faction">
           <button class="btn btn-p" onclick="salvarConfig()">✓ Salvar</button>
+          <button class="btn btn-s" onclick="forcarResetDados()" style="background:rgba(217,64,64,.12);border-color:var(--red);color:var(--red);">⚠ Resetar Dados Locais</button>
         </div>
       </div>
       <div class="fcard">
@@ -2528,43 +2529,60 @@ function save() {
 const DB_VERSION = 6; // bumped 25/05/2026 — reset completo AQUA/HORSE + estoque inicial das planilhas
 
 function load() {
-  // Carrega do localStorage enquanto Supabase não responde
   const s   = localStorage.getItem('raguife_db');
   const ver = parseInt(localStorage.getItem('raguife_db_version') || '0');
   if (s && ver >= DB_VERSION) {
-    try { DB = JSON.parse(s); return; } catch(e) {}
+    try {
+      const parsed = JSON.parse(s);
+      // Sanity check: se vier com variações indevidas ou dados de versão antiga, rejeita
+      DB = parsed;
+      return;
+    } catch(e) {}
   }
+  // Versão desatualizada ou corrompida → limpa tudo e recomeça do INITIAL
+  localStorage.removeItem('raguife_db');
+  localStorage.removeItem('raguife_db_version');
   initData();
-  localStorage.setItem('raguife_db_version', DB_VERSION);
+}
+
+function forcarResetDados() {
+  if (!confirm('Isso vai apagar TODO o histórico local e recarregar o estoque inicial.\nConfirmar?')) return;
+  localStorage.removeItem('raguife_db');
+  localStorage.removeItem('raguife_db_version');
+  location.reload();
 }
 
 function initData() {
   DB.mat = [];
-  let idx = 0;
+  DB.mov = [];
+  DB.cont = [];
+  DB.importLogs = [];
+  DB.pesoLogs = [];
   Object.entries(INITIAL).forEach(([ar, rows]) => {
     rows.forEach(r => {
       const un = (r.tipo || 'KGS').toUpperCase();
       DB.mat.push({
-        id: idx++,
-        codigo: r.codigo,
-        produto: r.produto,
-        tipo: r.tipo,
-        area: ar,
-        peso_emb: r.peso_emb || ({ KGS:1, LTS:1, BAG:1000, SAC:25, UN:1 }[un] || 1),
-        est_anterior: r.est_anterior,
-        entrada: r.entrada,
-        cons_previsto: r.cons_previsto,
-        cons_realizado: r.cons_realizado,
-        desvio: r.desvio,
-        est_atual: r.est_atual,
-        obs: r.obs,
-        qtd_contagem: r.qtd_contagem,
-        peso_contagem: r.peso_contagem,
-        data_contagem: null,
-        mediaDiaria: 0,
+        id:             r.id,               // preserva ID do INITIAL
+        codigo:         r.codigo,
+        produto:        r.produto,
+        tipo:           r.tipo,
+        area:           r.area || ar,
+        peso_emb:       r.peso_emb || ({ KGS:1, LTS:1, BAG:1000, SAC:25, UN:1 }[un] || 1),
+        est_anterior:   r.est_anterior   || 0,
+        entrada:        0,
+        cons_previsto:  0,
+        cons_realizado: 0,
+        desvio:         0,
+        est_atual:      r.est_atual      || 0,
+        obs:            r.obs            || '',
+        qtd_contagem:   0,
+        peso_contagem:  0,
+        data_contagem:  null,
+        mediaDiaria:    0,
       });
     });
   });
+  localStorage.setItem('raguife_db_version', DB_VERSION);
   save();
 }
 
