@@ -4684,7 +4684,7 @@ function confirmarImport() {
       est_anterior: r.est_ant || r.est_atual,
       obs: r.obs, categoria: r.categoria, fornecedor: r.fornecedor,
       mediaDiaria: 0, qtd_contagem: 0,
-      peso_contagem: r.est_atual, data_contagem: null,
+      peso_contagem: 0, data_contagem: null,
     };
 
     if (idx >= 0) {
@@ -6761,10 +6761,15 @@ function lancarAjuste() {
 
   if (!confirm(`Ajustar estoque de "${m.produto}"?\n\nSistema: ${f(m.est_atual)} kg\nReal:    ${f(real)} kg\nDiff:    ${f(diff)} kg\n\nMotivo: ${motivo}`)) return;
 
+  // Se é o primeiro lançamento do período, grava como ponto de partida
+  if (DB.mat[idx].est_anterior === 0 && DB.mat[idx].cons_realizado === 0) {
+    DB.mat[idx].est_anterior = real;
+  }
+
   // Aplica
   DB.mat[idx].est_atual      = real;
-  DB.mat[idx].peso_contagem  = real;
-  DB.mat[idx].data_contagem  = data;
+  DB.mat[idx].peso_contagem  = 0;    // ajuste manual não é contagem física
+  DB.mat[idx].data_contagem  = null;
 
   // Histórico
   DB.mov.push({
@@ -6891,9 +6896,16 @@ function aplicarAjusteRapido(matId) {
 
   const idx = DB.mat.findIndex(x => x.id === matId);
   const estAntes = m.est_atual;
+
+  // Se é o primeiro lançamento do período (est_anterior ainda zerado),
+  // grava como ponto de partida do período
+  if (DB.mat[idx].est_anterior === 0 && DB.mat[idx].cons_realizado === 0) {
+    DB.mat[idx].est_anterior = real;
+  }
+
   DB.mat[idx].est_atual      = real;
-  DB.mat[idx].peso_contagem  = real;
-  DB.mat[idx].data_contagem  = today();
+  DB.mat[idx].peso_contagem  = 0;    // zera contagem — ajuste manual não é contagem física
+  DB.mat[idx].data_contagem  = null;
 
   DB.mov.push({
     id: Date.now() + Math.random(),
@@ -7288,8 +7300,11 @@ function confirmarMes() {
       // desvio removido — não usado neste sistema
     }
     if (optBaixa && r.realizada > 0) {
-      // Guarda o est_anterior antes da baixa (para referência do próximo dia)
-      DB.mat[idx].est_anterior = estAntes;
+      // est_anterior só é atualizado se ainda não houve baixa neste período
+      // (proteção: não sobrescrever o est_anterior original do período)
+      if (DB.mat[idx].cons_realizado === 0) {
+        DB.mat[idx].est_anterior = estAntes;
+      }
       DB.mat[idx].est_atual = Math.max(0, estAntes - r.realizada);
       baixas++;
     }
