@@ -2474,7 +2474,11 @@ async function sbInit() {
       const remoteDB = typeof remote === 'string' ? JSON.parse(remote) : remote;
       const remoteVer = remoteDB._version || 0;
       if (remoteVer < DB_VERSION) {
-        // Dados do Supabase são de versão antiga — sobe os dados novos
+        // Faz backup dos dados antigos antes de sobrescrever
+        try {
+          localStorage.setItem('raguife_db_backup_v' + remoteVer, JSON.stringify(remoteDB));
+          console.log('[Supabase] Backup salvo como raguife_db_backup_v' + remoteVer);
+        } catch(e) {}
         console.log('[Supabase] Versão remota antiga — sobrescrevendo com dados novos.');
         await sbUpsert();
       } else {
