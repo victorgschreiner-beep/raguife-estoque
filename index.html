@@ -3081,7 +3081,7 @@ function goPage(name, el) {
     relatorio: renderRelatorio,
     balanco: renderBalanco,
     cobertura: renderCobertura,
-    'novo-material': () => { novoMaterialLimpar(); renderCadRecentes(); },
+    'novo-material': () => { if (!cadEditandoId) { novoMaterialLimpar(); } renderCadRecentes(); },
     materiais: () => { setMatTab('lista', document.querySelector('#page-materiais .tab')); }, consumo: renderConsumoHist,
     entrada: renderEntradaHist, contagem: renderContagemHist,
     historico: () => { setHistTab('movimentacoes', document.querySelector('#page-historico .tab')); },
