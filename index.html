@@ -2651,10 +2651,22 @@ function getMats(filterArea) {
 function matKey(m) { return m.codigo + '|' + m.produto + '|' + m.area; }
 
 function estRealContado(m) {
-  // estoque real = peso_contagem (peso kg da contagem física)
-  // se tipo BAG, peso_contagem pode ser peso por bag * qtd_contagem
-  // mas como a planilha já tem o valor em kg, usamos direto
-  return m.peso_contagem || 0;
+  // Só considera a contagem válida se ela foi feita APÓS o último consumo MES
+  // Caso contrário, a contagem é de antes do MES e não representa o estoque pós MES
+  if (!m.peso_contagem || m.peso_contagem <= 0) return 0;
+  if (!m.data_contagem) return 0;
+  // Se houve consumo MES, verifica se a contagem é posterior
+  if (m.cons_realizado > 0) {
+    // Busca a data do último lançamento MES deste material
+    const ultimoMes = DB.mov
+      .filter(mv => mv.matId === m.id && mv.tipo === 'consumo')
+      .sort((a, b) => (b.data||'').localeCompare(a.data||''))
+      [0];
+    if (ultimoMes && m.data_contagem < ultimoMes.data) {
+      return 0; // contagem é anterior ao MES — não é válida para divergência
+    }
+  }
+  return m.peso_contagem;
 }
 
 function diffRealSistema(m) {
@@ -6615,10 +6627,24 @@ function renderAnalistaDivergencias() {
     const estPosMES = m.est_atual;
 
     // 4. Estoque Contagem — o que o analista contou fisicamente
-    const estContagem = m.data_contagem ? (m.peso_contagem || 0) : null;
+    // Só válida se a contagem foi APÓS o último lançamento MES
+    const temContagem = m.data_contagem && m.peso_contagem > 0;
+    let estContagem = null;
+    let contagemAntesMES = false;
+    if (temContagem) {
+      const ultimoMes = DB.mov
+        .filter(mv => mv.matId === m.id && mv.tipo === 'consumo')
+        .sort((a, b) => (b.data||'').localeCompare(a.data||''))[0];
+      if (ultimoMes && m.data_contagem < ultimoMes.data) {
+        contagemAntesMES = true; // contagem desatualizada — anterior ao MES
+        estContagem = m.peso_contagem; // mostra o valor mas marca como inválido
+      } else {
+        estContagem = m.peso_contagem;
+      }
+    }
 
-    // Divergência = Contagem − Pós MES
-    const divKg  = estContagem !== null ? estContagem - estPosMES : null;
+    // Divergência = Contagem − Pós MES (só válida se contagem é posterior ao MES)
+    const divKg  = (estContagem !== null && !contagemAntesMES) ? estContagem - estPosMES : null;
     const divPct = divKg !== null && estPosMES > 0 ? (divKg / estPosMES) * 100 : null;
     const temDiv = divKg !== null && Math.abs(divKg) > 0.01;
 
@@ -6632,6 +6658,7 @@ function renderAnalistaDivergencias() {
       _estAnterior: estAnterior, _estEntrada: estEntrada,
       _estPosMES: estPosMES, _estContagem: estContagem,
       _divKg: divKg, _divPct: divPct, _temDiv: temDiv,
+      _contagemAntesMES: contagemAntesMES,
       _dias: dias, _media: media,
       _zerado: zerado, _critico: critico, _atencao: atencao,
     };
@@ -6708,18 +6735,28 @@ function renderAnalistaDivergencias() {
 
           <!-- ④ Est. Contagem -->
           <td class="tm" style="color:var(--cyan);font-weight:700">
-            ${m._estContagem !== null ? fEmbTxt(m, m._estContagem) : '<span style="color:var(--t3)">—</span>'}
-            ${m.data_contagem ? `<div style="font-size:9px;color:var(--t3);margin-top:2px;">${m.data_contagem}</div>` : ''}
+            ${m._estContagem !== null
+              ? (m._contagemAntesMES
+                  ? `<span style="color:var(--yellow)">${fEmbTxt(m, m._estContagem)}</span>`
+                  : fEmbTxt(m, m._estContagem))
+              : '<span style="color:var(--t3)">—</span>'}
+            ${m.data_contagem
+              ? `<div style="font-size:9px;color:${m._contagemAntesMES ? 'var(--yellow)' : 'var(--t3)'};margin-top:2px;">
+                  ${m.data_contagem}${m._contagemAntesMES ? ' ⚠ antes do MES' : ''}
+                </div>`
+              : ''}
           </td>
 
           <!-- Divergência kg -->
           <td class="${dcDiv}" style="font-weight:700;font-size:13px;">
-            ${m._divKg !== null ? sinal + f(m._divKg) + ' kg' : '<span style="color:var(--t3)">—</span>'}
+            ${m._contagemAntesMES
+              ? '<span style="color:var(--yellow);font-size:10px;font-weight:400">contagem desatualizada</span>'
+              : (m._divKg !== null ? sinal + f(m._divKg) + ' kg' : '<span style="color:var(--t3)">—</span>')}
           </td>
 
           <!-- Divergência % -->
           <td class="${dcDiv}" style="font-size:11px;">
-            ${m._divPct !== null ? sinal + Math.abs(m._divPct).toFixed(2).replace('.',',') + '%' : '—'}
+            ${m._contagemAntesMES ? '—' : (m._divPct !== null ? sinal + Math.abs(m._divPct).toFixed(2).replace('.',',') + '%' : '—')}
           </td>
 
           <!-- Resultado -->
