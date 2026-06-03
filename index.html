@@ -7532,6 +7532,186 @@ document.addEventListener('DOMContentLoaded', () => {
 // RELATÓRIO PDF — Balanço de Estoque
 // ═══════════════════════════════════════════════════════════
 function gerarRelatorioHTML() {
+  try {
+    var agora   = new Date();
+    var dataFmt = agora.toLocaleDateString('pt-BR');
+    var horaFmt = agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    var areas   = ['Aqua','Horse','PET'];
+    var todos   = DB.mat;
+
+    function fn(v, dec) {
+      dec = dec || 0;
+      if (v == null || isNaN(v)) return '—';
+      return Number(v).toLocaleString('pt-BR', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+    }
+    function vc(v) {
+      if (v == null) return '';
+      if (Math.abs(v) < 0.1) return 'color:#999';
+      return v > 0 ? 'color:#27ae60;font-weight:700' : 'color:#e74c3c;font-weight:700';
+    }
+    function dias(m) {
+      var med = calcMediaDiaria(m);
+      if (!med || med <= 0) return '<span style="background:#f5f5f5;color:#aaa;padding:1px 5px;border-radius:8px;font-size:7.5px;">S/H</span>';
+      var d = Math.floor(m.est_atual / med);
+      if (d <= 7)  return '<span style="background:#fdecea;color:#c0392b;border:1px solid #f5c6cb;padding:1px 5px;border-radius:8px;font-weight:700;font-size:7.5px;">'+d+'d</span>';
+      if (d <= 15) return '<span style="background:#fff8e1;color:#b8860b;border:1px solid #ffe082;padding:1px 5px;border-radius:8px;font-weight:700;font-size:7.5px;">'+d+'d</span>';
+      return '<span style="background:#e8f5e9;color:#1b7a3e;border:1px solid #a5d6a7;padding:1px 5px;border-radius:8px;font-weight:700;font-size:7.5px;">'+d+'d</span>';
+    }
+
+    // KPIs
+    var totalEst = todos.reduce(function(s,m){return s+m.est_atual;},0);
+    var zerados  = todos.filter(function(m){return m.est_atual<=0;}).length;
+    var criticos = todos.filter(function(m){
+      var med=calcMediaDiaria(m); return med>0&&(m.est_atual/med)<=7;
+    }).length;
+    var comVar = todos.filter(function(m){
+      return m.peso_contagem>0&&m.data_contagem&&Math.abs(m.peso_contagem-m.est_atual)>0.1;
+    }).length;
+
+    // Totais por area
+    var resumoHTML = '<div style="display:flex;border-bottom:2px solid #ddeedd;">';
+    areas.forEach(function(ar) {
+      var mts = todos.filter(function(m){return m.area===ar;});
+      var tEst = mts.reduce(function(s,m){return s+m.est_atual;},0);
+      var tEntr= mts.reduce(function(s,m){return s+(m.entrada||0);},0);
+      var tMES = mts.reduce(function(s,m){return s+(m.cons_realizado||0);},0);
+      var zer  = mts.filter(function(m){return m.est_atual<=0;}).length;
+      var cv   = mts.filter(function(m){return m.peso_contagem>0&&Math.abs(m.peso_contagem-m.est_atual)>0.1;}).length;
+      var cor  = ar==='Aqua'?'#1b5e20':ar==='Horse'?'#0d3a6e':'#880e4f';
+      resumoHTML += '<div style="flex:1;padding:12px 16px;border-right:1px solid #eef4ee;">';
+      resumoHTML += '<div style="font-size:9px;font-weight:800;letter-spacing:2px;color:'+cor+';margin-bottom:6px;">'+ar.toUpperCase()+'</div>';
+      resumoHTML += '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+      resumoHTML += '<div><div style="font-size:7px;color:#888;text-transform:uppercase;">Materiais</div><div style="font-size:13px;font-weight:700;color:#012b18;">'+mts.length+'</div></div>';
+      resumoHTML += '<div><div style="font-size:7px;color:#888;text-transform:uppercase;">Estoque kg</div><div style="font-size:13px;font-weight:700;color:#01478a;">'+fn(tEst)+'</div></div>';
+      resumoHTML += '<div><div style="font-size:7px;color:#888;text-transform:uppercase;">Entradas</div><div style="font-size:11px;font-weight:600;color:#1b7a3e;">+'+fn(tEntr)+'</div></div>';
+      resumoHTML += '<div><div style="font-size:7px;color:#888;text-transform:uppercase;">MES</div><div style="font-size:11px;font-weight:600;color:#7a5c00;">-'+fn(tMES)+'</div></div>';
+      resumoHTML += '<div><div style="font-size:7px;color:#888;text-transform:uppercase;">Zerados</div><div style="font-size:11px;color:'+(zer>0?'#c0392b':'#888')+';">'+zer+'</div></div>';
+      resumoHTML += '<div><div style="font-size:7px;color:#888;text-transform:uppercase;">Var.</div><div style="font-size:11px;color:'+(cv>0?'#d35400':'#888')+';">'+cv+'</div></div>';
+      resumoHTML += '</div></div>';
+    });
+    resumoHTML += '</div>';
+
+    // Tabelas por area
+    var tabelasHTML = '';
+    areas.forEach(function(ar) {
+      var mts = todos.filter(function(m){return m.area===ar;});
+      if (!mts.length) return;
+      var tEst = mts.reduce(function(s,m){return s+m.est_atual;},0);
+      var corBg = ar==='Aqua'?'#e8f5e9':ar==='Horse'?'#e3f2fd':'#fce4ec';
+      var corBd = ar==='Aqua'?'#27ae60':ar==='Horse'?'#1565c0':'#c2185b';
+      var corTx = ar==='Aqua'?'#1b5e20':ar==='Horse'?'#0d3a6e':'#880e4f';
+
+      tabelasHTML += '<div style="margin:0;">';
+      tabelasHTML += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:'+corBg+';border-left:4px solid '+corBd+';">';
+      tabelasHTML += '<span style="font-size:12px;font-weight:800;letter-spacing:2px;color:'+corTx+';">'+ar.toUpperCase()+'</span>';
+      tabelasHTML += '<span style="font-size:9px;color:#555;font-weight:600;">'+mts.length+' materiais &nbsp;&middot;&nbsp; Total: '+fn(tEst)+' kg</span>';
+      tabelasHTML += '</div>';
+      tabelasHTML += '<table style="width:100%;border-collapse:collapse;">';
+      tabelasHTML += '<thead><tr style="background:#012b18;color:#fff;">';
+      ['Código','Produto','Est. Anterior','+ Entradas','&minus; MES','Est. Sistema','Est. Físico','Variação (kg)','Var. %','Cobertura'].forEach(function(h,i){
+        var align = i<2?'left':'right';
+        tabelasHTML += '<th style="padding:5px 6px;text-align:'+align+';font-size:7.5px;font-weight:700;text-transform:uppercase;white-space:nowrap;">'+h+'</th>';
+      });
+      tabelasHTML += '</tr></thead><tbody>';
+
+      mts.forEach(function(m,ri) {
+        var fisico   = m.peso_contagem||0;
+        var temCont  = fisico>0&&m.data_contagem;
+        var variacao = temCont ? fisico-m.est_atual : null;
+        var varPct   = (variacao!==null&&m.est_atual>0)?(variacao/m.est_atual)*100:null;
+        var rowBg    = ri%2===0?'#fff':'#fafffe';
+        if (m.est_atual<=0) rowBg='#fdf0f7';
+
+        tabelasHTML += '<tr style="background:'+rowBg+';border-bottom:1px solid #eef4ee;'+(variacao!==null&&variacao<-0.1?'border-left:2px solid #e74c3c':'')+(variacao!==null&&variacao>0.1?'border-left:2px solid #2ecc71':'')+';">';
+        tabelasHTML += '<td style="padding:4px 6px;font-family:monospace;font-size:7.5px;color:#555;white-space:nowrap;">'+(m.codigo||'—')+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;font-weight:600;font-size:8px;max-width:160px;">'+m.produto+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;">'+fn(m.est_anterior)+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;color:#1b7a3e;font-weight:600;">'+(m.entrada>0?'+'+fn(m.entrada):'—')+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;color:#7a5c00;font-weight:600;">'+(m.cons_realizado>0?'−'+fn(m.cons_realizado):'—')+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;color:#01478a;font-weight:700;">'+fn(m.est_atual)+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;">'+(temCont?'<span style="color:#01478a;">'+fn(fisico)+'</span>':'<span style="color:#aaa;font-style:italic;">S/C</span>')+'</td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;"><span style="'+(variacao!==null?vc(variacao):'color:#aaa')+'">'+(variacao!==null?(variacao>=0?(Math.abs(variacao)>0.1?'+':'')+fn(variacao,1)+' kg':''+fn(variacao,1)+' kg'):'—')+'</span></td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:right;font-size:8px;"><span style="'+(varPct!==null?vc(variacao):'color:#aaa')+'">'+(varPct!==null?(varPct>=0?(Math.abs(varPct)>0.01?'+':'')+fn(varPct,1)+'%':''+fn(varPct,1)+'%'):'—')+'</span></td>';
+        tabelasHTML += '<td style="padding:4px 6px;text-align:center;font-size:8px;">'+dias(m)+'</td>';
+        tabelasHTML += '</tr>';
+      });
+
+      tabelasHTML += '</tbody></table></div>';
+    });
+
+    // Monta o HTML completo
+    var doc = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">';
+    doc += '<title>Relatorio Estoque RAGUIFE '+dataFmt+'</title>';
+    doc += '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Segoe UI,Arial,sans-serif;font-size:9px;color:#1a1a1a;background:#fff;}';
+    doc += '@media print{@page{margin:8mm;size:A4 landscape;}thead{display:table-header-group;}';
+    doc += '.no-print{display:none!important;}body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}';
+    doc += '.print-btn{position:fixed;top:12px;right:12px;background:#012b18;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;z-index:9999;}';
+    doc += '</style></head><body>';
+    doc += '<button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>';
+    doc += '<div style="background:linear-gradient(135deg,#012b18 0%,#024d2a 60%,#739630 100%);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-end;">';
+    doc += '<div><div style="font-size:24px;font-weight:800;letter-spacing:2px;color:#a8d060;">RAGUIFE</div>';
+    doc += '<div style="font-size:8px;color:#6aaa70;letter-spacing:3px;text-transform:uppercase;">Confiança que Inspira</div>';
+    doc += '<div style="font-size:14px;font-weight:600;color:#fff;margin-top:8px;">Relatório de Balanço de Estoque</div>';
+    doc += '<div style="font-size:8px;color:#9dd0a0;margin-top:2px;">Est. Anterior → Entradas → MES → Sistema → Físico → Variação → Cobertura</div></div>';
+    doc += '<div style="text-align:right;font-size:9px;color:#9dd0a0;line-height:1.8;">';
+    doc += '<div style="font-size:14px;font-weight:700;color:#fff;">'+dataFmt+'</div>';
+    doc += '<div>Gerado às '+horaFmt+'</div>';
+    doc += '<div style="margin-top:4px;">'+todos.length+' materiais · '+areas.join(' · ')+'</div></div></div>';
+
+    // KPIs
+    doc += '<div style="display:flex;border-bottom:3px solid #e8f0e8;">';
+    var kpis = [
+      {l:'Estoque Total',v:fn(totalEst),s:'kg no sistema',c:totalEst>0?'#012b18':'#c0392b'},
+      {l:'Zerados',v:''+zerados,s:'sem estoque',c:zerados>0?'#c0392b':'#27ae60'},
+      {l:'Cobertura Crítica',v:''+criticos,s:'≤ 7 dias',c:criticos>0?'#c0392b':'#27ae60'},
+      {l:'Com Variação Física',v:''+comVar,s:'físico ≠ sistema',c:comVar>0?'#d35400':'#27ae60'},
+      {l:'Materiais',v:''+todos.length,s:'cadastrados',c:'#012b18'}
+    ];
+    kpis.forEach(function(k){
+      doc += '<div style="flex:1;padding:14px 16px;border-right:1px solid #e8f0e8;">';
+      doc += '<div style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#666;font-weight:600;">'+k.l+'</div>';
+      doc += '<div style="font-size:20px;font-weight:800;margin-top:4px;color:'+k.c+';">'+k.v+'</div>';
+      doc += '<div style="font-size:8px;color:#888;margin-top:2px;">'+k.s+'</div></div>';
+    });
+    doc += '</div>';
+
+    doc += resumoHTML;
+
+    // Legenda
+    doc += '<div style="display:flex;gap:18px;padding:7px 16px;background:#f8fdf8;border-bottom:1px solid #ddeedd;font-size:8px;color:#444;flex-wrap:wrap;">';
+    doc += '<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#e74c3c;border-radius:2px;display:inline-block;"></span>Variação negativa</span>';
+    doc += '<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#2ecc71;border-radius:2px;display:inline-block;"></span>Variação positiva</span>';
+    doc += '<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#c0392b;border-radius:10px;display:inline-block;"></span>Crítico ≤7d</span>';
+    doc += '<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:#b8860b;border-radius:10px;display:inline-block;"></span>Atenção ≤15d</span>';
+    doc += '<span style="color:#aaa;font-style:italic;">S/C = Sem Contagem &nbsp;|&nbsp; S/H = Sem Histórico</span>';
+    doc += '</div>';
+
+    doc += tabelasHTML;
+
+    doc += '<div style="background:#012b18;color:#4a8a5a;font-size:7.5px;padding:8px 20px;display:flex;justify-content:space-between;">';
+    doc += '<span>RAGUIFE — Sistema de Controle de Estoque</span>';
+    doc += '<span>Gerado em '+dataFmt+' às '+horaFmt+'</span>';
+    doc += '<span>Documento para uso interno</span></div>';
+    doc += '</body></html>';
+
+    var blob = new Blob([doc], {type:'text/html;charset=utf-8'});
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href   = url;
+    a.download = 'relatorio_estoque_'+new Date().toISOString().slice(0,10)+'.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);}, 5000);
+    toast('Relatório baixado! Abra o arquivo e clique em "Imprimir / Salvar PDF".', 's');
+
+  } catch(err) {
+    console.error('Erro ao gerar relatório:', err);
+    toast('Erro ao gerar relatório: ' + err.message, 'e');
+  }
+}
+
+function gerarRelatorioHTML() {
   const agora   = new Date();
   const dataFmt = agora.toLocaleDateString('pt-BR');
   const horaFmt = agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
