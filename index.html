@@ -7376,14 +7376,23 @@ function confirmarMes() {
 
     const estAntes = DB.mat[idx].est_atual;
 
-    // Grava est_anterior ANTES de qualquer alteração — representa o estoque
-    // no início do período (só atualiza se ainda não foi importado MES hoje)
     const ultimoMesMat = DB.mov
       .filter(mv => mv.tipo === 'consumo' && mv.matId === mat.id)
       .sort((a,b) => (b.data||'').localeCompare(a.data||''))[0];
     const jaTemMesHoje = ultimoMesMat && ultimoMesMat.data === dataLimpa;
+
+    // est_anterior = ponto de partida do período
+    // Regra: se tem contagem física válida do dia anterior → usa ela
+    // Caso contrário → usa o est_atual antes da baixa do MES
     if (!jaTemMesHoje) {
-      DB.mat[idx].est_anterior = estAntes;
+      const contagem = DB.mat[idx].peso_contagem;
+      const dataContagem = DB.mat[idx].data_contagem;
+      // Se tem contagem de ontem ou antes → usa como est_anterior
+      if (contagem > 0 && dataContagem && dataContagem < dataLimpa) {
+        DB.mat[idx].est_anterior = contagem;
+      } else {
+        DB.mat[idx].est_anterior = estAntes;
+      }
     }
 
     if (optPrev) {
