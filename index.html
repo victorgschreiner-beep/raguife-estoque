@@ -7376,19 +7376,23 @@ function confirmarMes() {
 
     const estAntes = DB.mat[idx].est_atual;
 
+    // Grava est_anterior ANTES de qualquer alteração — representa o estoque
+    // no início do período (só atualiza se ainda não foi importado MES hoje)
+    const ultimoMesMat = DB.mov
+      .filter(mv => mv.tipo === 'consumo' && mv.matId === mat.id)
+      .sort((a,b) => (b.data||'').localeCompare(a.data||''))[0];
+    const jaTemMesHoje = ultimoMesMat && ultimoMesMat.data === dataLimpa;
+    if (!jaTemMesHoje) {
+      DB.mat[idx].est_anterior = estAntes;
+    }
+
     if (optPrev) {
       DB.mat[idx].cons_previsto = r.prevista;
     }
     if (optReal) {
       DB.mat[idx].cons_realizado = r.realizada;
-      // desvio removido — não usado neste sistema
     }
     if (optBaixa && r.realizada > 0) {
-      // est_anterior só é atualizado se ainda não houve baixa neste período
-      // (proteção: não sobrescrever o est_anterior original do período)
-      if (DB.mat[idx].cons_realizado === 0) {
-        DB.mat[idx].est_anterior = estAntes;
-      }
       DB.mat[idx].est_atual = Math.max(0, estAntes - r.realizada);
       baixas++;
     }
