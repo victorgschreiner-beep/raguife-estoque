@@ -2761,9 +2761,18 @@ function renderBalanco() {
     return true;
   });
 
+  // Calcula entradas do período atual para cada material
+  // Período = desde a data do est_anterior (data_contagem) até hoje
+  const entradaPeriodo = (m) => {
+    const desde = m.data_contagem || null;
+    return DB.mov
+      .filter(mv => mv.tipo === 'entrada' && mv.matId === m.id && (!desde || mv.data >= desde))
+      .reduce((s, mv) => s + (mv.quantidade || 0), 0);
+  };
+
   // Totalizadores
   const totAnterior  = mats.reduce((s,m) => s + (m.est_anterior||0), 0);
-  const totEntrada   = mats.reduce((s,m) => s + (m.entrada||0), 0);
+  const totEntrada   = mats.reduce((s,m) => s + entradaPeriodo(m), 0);
   const totMes       = mats.reduce((s,m) => s + (m.cons_realizado||0), 0);
   const totSistema   = mats.reduce((s,m) => s + (m.est_atual||0), 0);
   const totFisico    = mats.reduce((s,m) => s + (estRealContado(m)||0), 0);
@@ -2855,7 +2864,7 @@ function renderBalanco() {
             <td class="tm">${m.tipo}</td>
             <td>${areaBadge(m.area)}</td>
             <td class="tm">${f(m.est_anterior)}</td>
-            <td class="tm" style="color:var(--green)">${(m.entrada||0) > 0 ? '+'+f(m.entrada) : '—'}</td>
+            <td class="tm" style="color:var(--green)">${entradaPeriodo(m) > 0 ? '+'+f(entradaPeriodo(m)) : '—'}</td>
             <td class="tm" style="color:var(--yellow)">${(m.cons_realizado||0) > 0 ? '−'+f(m.cons_realizado) : '—'}</td>
             <td class="col-syst">${f(m.est_atual)}</td>
             <td class="${temCont ? 'col-fish' : 'tm'}" style="${!temCont?'color:var(--t3)':''}">${temCont ? f(fisico) : '—'}</td>
