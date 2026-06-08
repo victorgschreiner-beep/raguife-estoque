@@ -7410,6 +7410,9 @@ function confirmarMes() {
     }
     if (optBaixa && r.realizada > 0) {
       DB.mat[idx].est_atual = Math.max(0, estAntes - r.realizada);
+      // Sincroniza físico com sistema — variação só aparece se analista fizer contagem diferente
+      DB.mat[idx].peso_contagem = DB.mat[idx].est_atual;
+      DB.mat[idx].data_contagem = dataLimpa;
       baixas++;
     }
 
