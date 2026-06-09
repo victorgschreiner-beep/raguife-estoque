@@ -5561,28 +5561,62 @@ function matchMaterial(nomePdf) {
   const norm = normName(nomePdf);
 
   // 1) Exact match
-  let m = DB.mat.find(x => normName(x.produto) === norm);
+  let m = DB.mat.find(x => normName(x.produto) === norm && x.area === 'Aqua');
+  if (!m) m = DB.mat.find(x => normName(x.produto) === norm);
   if (m) return { mat: m, score: 100, method: 'exato' };
 
-  // 2) Contains em qualquer direção
-  m = DB.mat.find(x => {
+  // 2) Contains em qualquer direção — prioriza Aqua
+  m = DB.mat.find(x => x.area === 'Aqua' && (() => {
+    const n = normName(x.produto);
+    return n === norm || n.includes(norm) || norm.includes(n);
+  })());
+  if (!m) m = DB.mat.find(x => {
     const n = normName(x.produto);
     return n === norm || n.includes(norm) || norm.includes(n);
   });
   if (m) return { mat: m, score: 90, method: 'contém' };
 
-  // 3) Token overlap ≥ 60%
+  // 3) Token overlap ≥ 60% — prioriza Aqua
   const tokA = norm.split(' ').filter(t => t.length > 2);
   let best = null, bestScore = 0;
   DB.mat.forEach(x => {
     const tokB = normName(x.produto).split(' ').filter(t => t.length > 2);
     const shared = tokA.filter(t => tokB.includes(t)).length;
     const score = tokA.length ? shared / Math.max(tokA.length, tokB.length) : 0;
-    if (score > bestScore) { bestScore = score; best = x; }
+    if (score > bestScore || (score === bestScore && x.area === 'Aqua')) {
+      bestScore = score; best = x;
+    }
   });
   if (bestScore >= 0.6) return { mat: best, score: Math.round(bestScore * 100), method: 'similar' };
 
   return null;
+}
+
+// Retorna TODOS os materiais que batem com o nome do PDF (por área diferente)
+function matchMaterialTodos(nomePdf) {
+  const norm = normName(nomePdf);
+  const resultados = [];
+  const vistos = new Set();
+
+  DB.mat.forEach(x => {
+    const n = normName(x.produto);
+    const bate = n === norm || n.includes(norm) || norm.includes(n);
+    if (!bate) {
+      // Token overlap
+      const tokA = norm.split(' ').filter(t => t.length > 2);
+      const tokB = n.split(' ').filter(t => t.length > 2);
+      const shared = tokA.filter(t => tokB.includes(t)).length;
+      const score = tokA.length ? shared / Math.max(tokA.length, tokB.length) : 0;
+      if (score < 0.6) return;
+    }
+    const chave = x.codigo + '|' + x.area;
+    if (!vistos.has(chave)) {
+      vistos.add(chave);
+      resultados.push(x);
+    }
+  });
+
+  return resultados;
 }
 
 // ── Handler do upload do PDF ──────────────────────────────
@@ -5750,9 +5784,40 @@ async function handleMesPdf(event) {
 
     // ── Match com DB ─────────────────────────────────────
     mesDados = parsed;
-    mesMatched = parsed.map(row => {
-      const match = matchMaterial(row.produto);
-      return { ...row, match };
+    // Expande duplicatas — produtos com mesmo nome em áreas diferentes
+    // ficam como linhas separadas com quantidade editável
+    mesMatched = [];
+    parsed.forEach(row => {
+      const todos = matchMaterialTodos(row.produto);
+      const areas = [...new Set(todos.map(m => m.area))];
+
+      if (areas.length <= 1) {
+        // Sem duplicata — fluxo normal
+        const match = matchMaterial(row.produto);
+        mesMatched.push({ ...row, match, _duplicata: false });
+      } else {
+        // Tem duplicata entre áreas — cria uma linha por área
+        // Default: total vai para Aqua, demais ficam 0
+        const temAqua = areas.includes('Aqua');
+        areas.forEach((area, ai) => {
+          const matArea = todos.find(m => m.area === area);
+          const qtdDefault = (temAqua && area === 'Aqua') ? row.realizada
+            : (!temAqua && ai === 0) ? row.realizada : 0;
+          const rowDup = {
+            ...row,
+            realizada: qtdDefault,
+            prevista:  qtdDefault,
+            erro_kg:   0,
+            erro_pct:  0,
+            match: matArea ? { mat: matArea, score: 95, method: 'duplicata' } : null,
+            _duplicata: true,
+            _areaLabel: area,
+            _totalOriginal: row.realizada,
+            _grupoProduto: row.produto,
+          };
+          mesMatched.push(rowDup);
+        });
+      }
     });
 
     setMesProgress(100);
@@ -5810,9 +5875,12 @@ function renderMesPreview() {
       ? f(Math.max(0, r.match.mat.est_atual - r.realizada)) : '\u2014';
     if (!r._id) r._id = r.produto.replace(/\W/g,'').slice(0,12) + '_' + Math.random().toString(36).slice(2,6);
     const rid = r._id;
-    return `<tr class="${!matched ? 'row-unmatched' : r.erro_kg !== 0 ? 'row-desvio' : ''}">
+    return `<tr class="${!matched ? 'row-unmatched' : r.erro_kg !== 0 ? 'row-desvio' : ''}" style="${r._duplicata ? 'border-left:3px solid var(--blue)' : ''}">
       <td style="font-size:12px;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-          title="${r.produto}">${r.produto}</td>
+          title="${r.produto}">
+        ${r.produto}
+        ${r._duplicata ? `<div style="font-size:9px;margin-top:2px;">${areaBadge(r._areaLabel)} <span style="color:var(--t3);font-family:var(--mono);">de ${r._totalOriginal?.toFixed?.(0)||0} kg totais</span></div>` : ''}
+      </td>
       <td>${matchBadge}</td>
       <td>
         <input type="number" min="0" step="0.001" value="${r.prevista}" id="mes-prev-${rid}"
