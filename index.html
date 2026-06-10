@@ -2682,21 +2682,28 @@ function getMats(filterArea) {
 function matKey(m) { return m.codigo + '|' + m.produto + '|' + m.area; }
 
 function estRealContado(m) {
-  // Só considera a contagem válida se ela foi feita APÓS o último consumo MES
-  // Caso contrário, a contagem é de antes do MES e não representa o estoque pós MES
-  if (!m.peso_contagem || m.peso_contagem <= 0) return 0;
-  if (!m.data_contagem) return 0;
-  // Se houve consumo MES, verifica se a contagem é posterior
-  if (m.cons_realizado > 0) {
-    // Busca a data do último lançamento MES deste material
-    const ultimoMes = DB.mov
-      .filter(mv => mv.matId === m.id && mv.tipo === 'consumo')
-      .sort((a, b) => (b.data||'').localeCompare(a.data||''))
-      [0];
-    if (ultimoMes && m.data_contagem < ultimoMes.data) {
-      return 0; // contagem é anterior ao MES — não é válida para divergência
-    }
+  // Valor base = est_atual (já reflete entradas e MES)
+  // Se não houve nenhuma movimentação, usa est_anterior como base
+  const semMovimentos = !DB.mov.some(mv => mv.matId === m.id);
+  const base = (semMovimentos && m.est_atual === 0 && m.est_anterior > 0)
+    ? m.est_anterior
+    : m.est_atual;
+
+  // Sem contagem posterior ao MES → físico = sistema
+  if (!m.peso_contagem || m.peso_contagem <= 0) return base;
+  if (!m.data_contagem) return base;
+
+  // Verifica se a contagem foi feita APÓS o último MES
+  const ultimoMes = DB.mov
+    .filter(mv => mv.matId === m.id && mv.tipo === 'consumo')
+    .sort((a, b) => (b.data||'').localeCompare(a.data||''))
+    [0];
+
+  if (ultimoMes && m.data_contagem <= ultimoMes.data) {
+    return base; // contagem anterior/igual ao MES — usa base
   }
+
+  // Contagem posterior ao MES — usa o valor contado pelo analista
   return m.peso_contagem;
 }
 
