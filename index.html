@@ -1720,6 +1720,7 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
       <div class="tabs" style="margin-bottom:14px;">
         <button class="tab on" onclick="setHistTab('movimentacoes',this)">&#9776; Movimentações</button>
         <button class="tab"    onclick="setHistTab('posicao',this)">&#9200; Posição por Data</button>
+        <button class="tab"    onclick="setHistTab('variacao',this)">&#916; Variação Acumulada</button>
       </div>
 
       <!-- ABA: Movimentações -->
@@ -1796,6 +1797,29 @@ body.lm #topbar { border-bottom: 1px solid #c0d9c8; }
         </div>
         <div id="snap-info" style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-bottom:8px;"></div>
         <div id="snap-table"></div>
+      </div>
+
+      <!-- ABA: Variação Acumulada -->
+      <div id="hist-tab-variacao" style="display:none;">
+        <div style="background:rgba(115,150,48,.08);border:1px solid rgba(115,150,48,.25);border-radius:8px;padding:14px 18px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--verde-claro);margin-bottom:3px;">△ Variação Acumulada de Período</div>
+          <div style="font-size:11.5px;color:var(--t2);">Soma todas as variações registradas (contagens físicas) no período. Gravada automaticamente ao contar via Sacaria ou Ajuste Manual.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="fg" style="min-width:150px;"><label class="fl">De</label><input type="date" id="var-de" class="fi" onchange="renderVariacaoAcumulada()"></div>
+          <div class="fg" style="min-width:150px;"><label class="fl">Até</label><input type="date" id="var-ate" class="fi" onchange="renderVariacaoAcumulada()"></div>
+          <div class="fg" style="min-width:120px;">
+            <label class="fl">Área</label>
+            <select id="var-area" class="fs" onchange="renderVariacaoAcumulada()">
+              <option value="">Todas</option><option value="Aqua">AQUA</option>
+              <option value="Horse">HORSE</option><option value="PET">PET</option>
+            </select>
+          </div>
+          <div class="fg" style="min-width:200px;"><label class="fl">Produto</label><input type="text" id="var-search" class="fi" placeholder="Código ou produto..." oninput="renderVariacaoAcumulada()"></div>
+          <button class="btn btn-s btn-sm" onclick="exportVariacaoExcel()">⬇ Excel</button>
+        </div>
+        <div id="var-totais" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
+        <div id="var-table"></div>
       </div>
 
     </div>
@@ -4032,14 +4056,171 @@ function setHistTab(tab, el) {
   if (el) el.classList.add('on');
   document.getElementById('hist-tab-movimentacoes').style.display = tab === 'movimentacoes' ? '' : 'none';
   document.getElementById('hist-tab-posicao').style.display       = tab === 'posicao'       ? '' : 'none';
+  document.getElementById('hist-tab-variacao').style.display      = tab === 'variacao'      ? '' : 'none';
   if (tab === 'movimentacoes') renderHistorico();
   if (tab === 'posicao') {
-    // pré-preenche data de hoje se vazia
     const el2 = document.getElementById('snap-data');
     if (el2 && !el2.value) el2.value = today();
     document.getElementById('snap-table').innerHTML = '';
     document.getElementById('snap-info').textContent = 'Selecione a data e clique em Reconstituir Estoque.';
   }
+  if (tab === 'variacao') {
+    const vd = document.getElementById('var-de');
+    const va = document.getElementById('var-ate');
+    if (vd && !vd.value) { const d = new Date(); d.setDate(d.getDate()-6); vd.value = d.toISOString().slice(0,10); }
+    if (va && !va.value) va.value = today();
+    renderVariacaoAcumulada();
+  }
+}
+
+function renderVariacaoAcumulada() {
+  const de    = document.getElementById('var-de')?.value    || '';
+  const ate   = document.getElementById('var-ate')?.value   || '';
+  const areaF = document.getElementById('var-area')?.value  || '';
+  const sF    = (document.getElementById('var-search')?.value || '').toLowerCase();
+
+  // Filtra movimentações tipo 'variacao'
+  let vars = DB.mov.filter(mv => {
+    if (mv.tipo !== 'variacao') return false;
+    if (de    && mv.data < de)    return false;
+    if (ate   && mv.data > ate)   return false;
+    if (areaF && mv.area !== areaF) return false;
+    if (sF && !mv.produto.toLowerCase().includes(sF) && !(mv.codigo||'').toLowerCase().includes(sF)) return false;
+    return true;
+  });
+
+  // Agrupa por material
+  const grupos = {};
+  vars.forEach(mv => {
+    const key = mv.matId + '|' + mv.codigo;
+    if (!grupos[key]) {
+      grupos[key] = {
+        matId: mv.matId, codigo: mv.codigo, produto: mv.produto,
+        area: mv.area, tipo_un: mv.tipo_un,
+        totalDif: 0, totalPct: 0, count: 0, registros: []
+      };
+    }
+    grupos[key].totalDif  += mv.diferenca || 0;
+    grupos[key].totalPct  += mv.diferenca_pct || 0;
+    grupos[key].count++;
+    grupos[key].registros.push(mv);
+  });
+
+  const items = Object.values(grupos).sort((a,b) => Math.abs(b.totalDif) - Math.abs(a.totalDif));
+
+  // Totalizadores
+  const totalVarKg  = items.reduce((s,g) => s + g.totalDif, 0);
+  const totalSobra  = items.filter(g => g.totalDif > 0.1).reduce((s,g) => s + g.totalDif, 0);
+  const totalFalta  = items.filter(g => g.totalDif < -0.1).reduce((s,g) => s + g.totalDif, 0);
+  const comVar      = items.filter(g => Math.abs(g.totalDif) > 0.1).length;
+
+  document.getElementById('var-totais').innerHTML = `
+    <div class="sc" style="flex:1;min-width:140px;padding:10px 14px;">
+      <div class="sc-label">Variação Total</div>
+      <div class="sc-value" style="font-size:18px;color:${Math.abs(totalVarKg)<0.1?'var(--t3)':totalVarKg>0?'var(--yellow)':'var(--red)'}">
+        ${totalVarKg>=0?'+':''}${f0(totalVarKg)} kg
+      </div>
+      <div class="sc-sub">${items.length} produtos</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:140px;padding:10px 14px;">
+      <div class="sc-label">Total Sobras</div>
+      <div class="sc-value" style="font-size:18px;color:var(--yellow)">+${f0(totalSobra)} kg</div>
+      <div class="sc-sub">físico > sistema</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:140px;padding:10px 14px;">
+      <div class="sc-label">Total Faltas</div>
+      <div class="sc-value" style="font-size:18px;color:var(--red)">${f0(totalFalta)} kg</div>
+      <div class="sc-sub">físico < sistema</div>
+    </div>
+    <div class="sc" style="flex:1;min-width:140px;padding:10px 14px;">
+      <div class="sc-label">Com Variação</div>
+      <div class="sc-value" style="font-size:18px;color:var(--orange)">${comVar}</div>
+      <div class="sc-sub">de ${items.length} produtos</div>
+    </div>`;
+
+  if (!items.length) {
+    document.getElementById('var-table').innerHTML =
+      '<div style="color:var(--t3);padding:24px;text-align:center;font-size:12px;">Nenhuma variação registrada no período.<br>Variações são gravadas automaticamente ao fazer contagem via Sacaria ou Ajuste Manual.</div>';
+    return;
+  }
+
+  const rows = items.map(g => {
+    const varCls = Math.abs(g.totalDif) < 0.1 ? 'var-zero' : g.totalDif > 0 ? 'var-pos' : 'var-neg';
+    const mediaPct = g.count > 0 ? g.totalPct / g.count : 0;
+    const detalhes = g.registros
+      .sort((a,b) => a.data.localeCompare(b.data))
+      .map(mv => `<div style="font-size:10px;color:var(--t3);padding:2px 0;">
+        ${mv.data} — ${mv.diferenca>=0?'+':''}${f(mv.diferenca)} kg
+        (sistema: ${f(mv.est_sistema)} · físico: ${f(mv.est_fisico)})
+      </div>`).join('');
+
+    return `<tr>
+      <td class="tm">${g.codigo||'—'}</td>
+      <td class="td-desc" style="max-width:180px">
+        <div>${g.produto}</div>
+        <details style="margin-top:3px;">
+          <summary style="font-size:10px;color:var(--t3);cursor:pointer;">${g.count} registro(s)</summary>
+          ${detalhes}
+        </details>
+      </td>
+      <td>${areaBadge(g.area)}</td>
+      <td class="tm" style="color:var(--t3)">${g.count}</td>
+      <td class="${varCls}" style="font-size:13px;font-weight:700;">
+        ${g.totalDif>=0?(Math.abs(g.totalDif)>0.1?'+':''):''}${f(g.totalDif)} kg
+      </td>
+      <td class="${varCls}">${mediaPct>=0?(Math.abs(mediaPct)>0.01?'+':''):''}${f(mediaPct,1)}%</td>
+      <td style="font-size:10px;color:var(--t3);">${g.registros[g.registros.length-1]?.data||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('var-table').innerHTML = `
+    <div class="tcard">
+      <div class="tcard-head">
+        <span class="tcard-title">Variação Acumulada</span>
+        <span class="tcard-count">${items.length} produtos</span>
+        <span style="margin-left:auto;font-size:11px;font-family:var(--mono);color:var(--t3);">
+          ${de && ate ? new Date(de+'T00:00:00').toLocaleDateString('pt-BR') + ' a ' + new Date(ate+'T00:00:00').toLocaleDateString('pt-BR') : 'Todo o período'}
+        </span>
+      </div>
+      <div class="twrap"><table>
+        <thead><tr>
+          <th>Código</th><th>Produto</th><th>Área</th>
+          <th title="Quantidade de contagens no período">Contagens</th>
+          <th title="Soma das variações no período">Variação Acum. (kg)</th>
+          <th title="Percentual médio de variação">Var. % Média</th>
+          <th>Últ. Registro</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function exportVariacaoExcel() {
+  if (typeof XLSX === 'undefined') { toast('XLSX não disponível.', 'e'); return; }
+  const de    = document.getElementById('var-de')?.value  || '';
+  const ate   = document.getElementById('var-ate')?.value || '';
+  const areaF = document.getElementById('var-area')?.value || '';
+
+  const vars = DB.mov.filter(mv =>
+    mv.tipo === 'variacao' &&
+    (!de    || mv.data >= de) &&
+    (!ate   || mv.data <= ate) &&
+    (!areaF || mv.area === areaF)
+  ).sort((a,b) => a.data.localeCompare(b.data));
+
+  const header = ['Data','Código','Produto','Área','Est. Sistema (kg)','Est. Físico (kg)','Variação (kg)','Var. %'];
+  const rows2  = [header, ...vars.map(mv => [
+    mv.data, mv.codigo||'', mv.produto, mv.area,
+    parseFloat((mv.est_sistema||0).toFixed(3)),
+    parseFloat((mv.est_fisico||0).toFixed(3)),
+    parseFloat((mv.diferenca||0).toFixed(3)),
+    parseFloat((mv.diferenca_pct||0).toFixed(2))
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(rows2);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Variação');
+  XLSX.writeFile(wb, 'variacao_acumulada_' + today() + '.xlsx');
+  toast('Excel exportado!', 's');
 }
 
 // ─── SNAPSHOT: Posição de Estoque em Data Específica ─────
@@ -6639,6 +6820,21 @@ function aplicarSacariaRapida(matId) {
     ts: new Date().toISOString()
   });
 
+  // Grava snapshot de variação para histórico acumulado
+  if (Math.abs(diff) > 0.01) {
+    DB.mov.push({
+      id: Date.now() + Math.random() + 0.1,
+      tipo: 'variacao',
+      matId, codigo: m.codigo, produto: m.produto, area: m.area, tipo_un: m.tipo,
+      est_sistema: m.est_atual,
+      est_fisico:  total,
+      diferenca:   diff,
+      diferenca_pct: m.est_atual > 0 ? (diff / m.est_atual) * 100 : 0,
+      data: today(),
+      ts: new Date().toISOString()
+    });
+  }
+
   save(); updateAlertBadge();
   // Atualiza só a linha sem re-renderizar a tabela inteira
   const row = document.getElementById('sac-row-' + matId);
@@ -7073,6 +7269,21 @@ function aplicarAjusteRapido(matId) {
     obs: `Ajuste manual kg: sistema ${f(estAntes)} → real ${f(real)}`,
     ts: new Date().toISOString()
   });
+
+  // Grava snapshot de variação para histórico acumulado
+  if (Math.abs(diff) > 0.01) {
+    DB.mov.push({
+      id: Date.now() + Math.random() + 0.1,
+      tipo: 'variacao',
+      matId, codigo: m.codigo, produto: m.produto, area: m.area, tipo_un: m.tipo,
+      est_sistema: estAntes,
+      est_fisico:  real,
+      diferenca:   diff,
+      diferenca_pct: estAntes > 0 ? (diff / estAntes) * 100 : 0,
+      data: today(),
+      ts: new Date().toISOString()
+    });
+  }
 
   save(); updateAlertBadge(); updateCoberturasBadge();
   const row = document.getElementById('aj-row-' + matId);
