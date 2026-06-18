@@ -6795,8 +6795,9 @@ function aplicarSacariaRapida(matId) {
   const qtd  = parseFloat(document.getElementById('sac-qtd-'  + matId)?.value) || 0;
   const pEmb = parseFloat(document.getElementById('sac-pemb-' + matId)?.value) || 1;
   if (!m || !qtd) return;
-  const total = qtd * pEmb;
-  const diff  = total - m.est_atual;
+  const total     = qtd * pEmb;
+  const estSistema = m.est_atual;          // captura ANTES de qualquer alteração
+  const diff      = total - estSistema;
 
   const idx = DB.mat.findIndex(x => x.id === matId);
   // Salva o peso/emb no cadastro do material para próximos lançamentos
@@ -6826,10 +6827,10 @@ function aplicarSacariaRapida(matId) {
       id: Date.now() + Math.random() + 0.1,
       tipo: 'variacao',
       matId, codigo: m.codigo, produto: m.produto, area: m.area, tipo_un: m.tipo,
-      est_sistema: m.est_atual,
+      est_sistema: estSistema,
       est_fisico:  total,
       diferenca:   diff,
-      diferenca_pct: m.est_atual > 0 ? (diff / m.est_atual) * 100 : 0,
+      diferenca_pct: estSistema > 0 ? (diff / estSistema) * 100 : 0,
       data: today(),
       ts: new Date().toISOString()
     });
