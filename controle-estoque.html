@@ -113,6 +113,15 @@ td.mono{font-family:'Courier New',monospace}
 #leitorQr{width:100%;border-radius:var(--r2);overflow:hidden}
 .campo-risco{border:2px solid #d29922 !important;background:rgba(210,153,34,.06)}
 
+/* GRADE DE SELEÇÃO DE POSIÇÃO */
+.nivel-grupo{margin-bottom:16px}
+.nivel-titulo{font-size:12px;font-weight:700;color:#024f2b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (min-width:480px){.sgrid{grid-template-columns:repeat(6,1fr)}}
+.sbt{padding:12px 4px;border:1px solid #c8d8c8;border-radius:var(--r);background:#f4f6f4;cursor:pointer;text-align:center;font-size:13px;font-weight:700;transition:.12s;color:#1a2e1a;font-family:'Courier New',monospace}
+.sbt:hover{border-color:#024f2b;background:rgba(2,79,43,.08)}
+.sbt.ocupada{background:#eef2ee;color:#b0b8b0;border-color:#dde6dd;cursor:not-allowed;text-decoration:line-through}
+
 #loader{position:fixed;inset:0;background:rgba(1,40,22,.7);z-index:1000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
 #loader.on{display:flex}
 .spin{width:34px;height:34px;border:3px solid rgba(115,150,48,.3);border-top-color:#739630;border-radius:50%;animation:sp .7s linear infinite}
@@ -195,25 +204,32 @@ td.mono{font-family:'Courier New',monospace}
           <div class="ponto" data-etapa="1"></div>
           <div class="ponto" data-etapa="2"></div>
           <div class="ponto" data-etapa="3"></div>
+          <div class="ponto" data-etapa="4"></div>
         </div>
 
         <div class="etapa" id="etapaArm1">
-          <div class="ch"><span class="ct">1. Ler QR Code da posição</span></div>
+          <div class="ch"><span class="ct">1. Ler QR Code da entrada da rua</span></div>
           <div id="leitorQr"></div>
           <div class="aler" id="msgErroPosicao" style="display:none"></div>
-          <p style="font-size:12px;color:var(--tx2);margin-top:8px" id="statusPosicao">Aponte a câmera para o QR Code fixado na posição do estoque.</p>
+          <p style="font-size:12px;color:var(--tx2);margin-top:8px" id="statusPosicao">Aponte a câmera para o QR Code fixado na entrada da rua.</p>
         </div>
 
         <div class="etapa" id="etapaArm2">
-          <div class="ch"><span class="ct">2. Foto da etiqueta do pallet</span></div>
+          <div class="ch"><span class="ct">2. Selecionar a posição</span></div>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Rua confirmada: <strong id="ruaConfirmada"></strong> — toque na posição onde o pallet será armazenado. Posições riscadas já estão ocupadas.</p>
+          <div id="gradePosicoes"></div>
+        </div>
+
+        <div class="etapa" id="etapaArm3">
+          <div class="ch"><span class="ct">3. Foto da etiqueta do pallet</span></div>
           <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Posição confirmada: <strong id="posicaoConfirmada"></strong></p>
           <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
           <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
         </div>
 
-        <div class="etapa" id="etapaArm3">
-          <div class="ch"><span class="ct">3. Conferir dados antes de salvar</span></div>
+        <div class="etapa" id="etapaArm4">
+          <div class="ch"><span class="ct">4. Conferir dados antes de salvar</span></div>
           <div class="alw" id="alertaRisco" style="display:none"></div>
           <div class="aler" id="msgErroSalvar" style="display:none"></div>
 
@@ -272,6 +288,21 @@ td.mono{font-family:'Courier New',monospace}
           <div id="preVisualizacao" style="font-size:12px;color:var(--tx2);margin-bottom:12px"></div>
           <button type="submit" class="btn bp" id="btnGerar" disabled>Confirmar e gerar posições</button>
         </form>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">Imprimir QR Code da entrada da rua</span></div>
+        <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">
+          Gera um QR Code por rua, para fixar na entrada do corredor (altura acessível). O operador escaneia esse QR e depois seleciona manualmente o nível/posição na tela — não existe mais QR individual por posição, já que níveis altos não são escaneáveis.
+        </p>
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">Rua</label>
+            <select id="selRuaImprimir"><option value="">Todas as ruas</option></select>
+          </div>
+          <div class="fg" style="justify-content:flex-end">
+            <button type="button" class="btn bp" id="btnImprimirQr">🖨️ Gerar e imprimir</button>
+          </div>
+        </div>
       </div>
       <div class="card">
         <div class="ch"><span class="ct">Ocupação por rua</span></div>
@@ -350,6 +381,7 @@ td.mono{font-family:'Courier New',monospace}
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 <script type="module">
 // ============================================================
@@ -674,25 +706,67 @@ function iniciarFluxoArmazenagem() {
   leitorQr = new Html5Qrcode("leitorQr");
   Html5Qrcode.getCameras().then(cameras => {
     const traseira = cameras.find(c => /back|traseira|rear/i.test(c.label)) || cameras[cameras.length - 1];
-    leitorQr.start(traseira ? traseira.id : { facingMode: "environment" }, { fps: 10, qrbox: 240 }, onQrLida, () => {});
+    leitorQr.start(traseira ? traseira.id : { facingMode: "environment" }, { fps: 10, qrbox: 240 }, onQrRuaLida, () => {});
   }).catch(() => {
     G("msgErroPosicao").textContent = "Não foi possível acessar a câmera. Verifique as permissões do navegador.";
     G("msgErroPosicao").style.display = "block";
   });
 }
 
-async function onQrLida(codigoLido) {
+// ------------------------------------------------------------
+// ETAPA 1: QR fica só na entrada da rua (altura acessível) — não
+// existe mais QR individual por posição, porque em ruas altas
+// (níveis a 2-3m) seria fisicamente impossível escanear.
+// ------------------------------------------------------------
+async function onQrRuaLida(ruaLida) {
   const msgErro = G("msgErroPosicao");
   msgErro.style.display = "none";
-  const posicao = await fsBuscarPorId("posicoes", codigoLido);
-  if (!posicao) { msgErro.textContent = `Posição "${codigoLido}" não encontrada no sistema.`; msgErro.style.display = "block"; return; }
-  if (posicao.status === "ocupada") { msgErro.textContent = `Posição "${codigoLido}" já está ocupada. Escolha outra posição.`; msgErro.style.display = "block"; return; }
 
-  codigoPosicaoLida = codigoLido;
+  const posicoesDaRua = await fsBuscarPorCampo("posicoes", "rua", ruaLida);
+  if (posicoesDaRua.length === 0) {
+    msgErro.textContent = `Rua "${ruaLida}" não encontrada no sistema.`;
+    msgErro.style.display = "block";
+    return;
+  }
+
   pararLeitorQr();
-  G("posicaoConfirmada").textContent = codigoLido;
+  G("ruaConfirmada").textContent = ruaLida;
+  renderGradePosicoes(posicoesDaRua);
   irParaEtapaArm(2);
 }
+
+// ------------------------------------------------------------
+// ETAPA 2: seleção manual de Nível/Posição, agrupada por nível.
+// Mostra também as posições ocupadas (riscadas, desabilitadas)
+// para dar contexto visual completo da rua ao operador.
+// ------------------------------------------------------------
+function renderGradePosicoes(posicoes) {
+  const porNivel = {};
+  posicoes.forEach(p => {
+    if (!porNivel[p.nivel]) porNivel[p.nivel] = [];
+    porNivel[p.nivel].push(p);
+  });
+
+  const container = G("gradePosicoes");
+  container.innerHTML = "";
+  Object.keys(porNivel).sort().forEach(nivel => {
+    const grupo = document.createElement("div");
+    grupo.className = "nivel-grupo";
+    const posicoesOrdenadas = porNivel[nivel].sort((a, b) => a.posicao.localeCompare(b.posicao));
+    grupo.innerHTML = `<div class="nivel-titulo">Nível ${nivel}</div><div class="sgrid">` +
+      posicoesOrdenadas.map(p => {
+        const ocupada = p.status === "ocupada";
+        return `<button type="button" class="sbt${ocupada ? " ocupada" : ""}" ${ocupada ? "disabled" : `onclick="selecionarPosicao('${p.codigo}')"`}>${p.posicao}</button>`;
+      }).join("") + `</div>`;
+    container.appendChild(grupo);
+  });
+}
+
+window.selecionarPosicao = function (codigo) {
+  codigoPosicaoLida = codigo;
+  G("posicaoConfirmada").textContent = codigo;
+  irParaEtapaArm(3);
+};
 
 G("inputFoto").addEventListener("change", async (e) => {
   const arquivo = e.target.files[0];
@@ -704,13 +778,13 @@ G("inputFoto").addEventListener("change", async (e) => {
     const { data: { text } } = await Tesseract.recognize(arquivo, "por");
     preencherFormularioArmazenagem(extrairCamposDaEtiqueta(text));
     avaliarRiscoOpLote();
-    irParaEtapaArm(3);
+    irParaEtapaArm(4);
   } catch (erro) {
     area.innerHTML = `<span style="color:#c0392b">Falha ao processar a imagem. Tente novamente com melhor iluminação.</span>`;
   }
 });
 
-window.voltarParaFoto = function () { irParaEtapaArm(2); G("areaProcessamento").textContent = ""; };
+window.voltarParaFoto = function () { irParaEtapaArm(3); G("areaProcessamento").textContent = ""; };
 
 function preencherFormularioArmazenagem(c) {
   G("campoProduto").value = c.produto; G("campoDescricao").value = c.descricao;
@@ -821,6 +895,7 @@ function renderEstrutura() {
 
 async function carregarResumoRuas() {
   const tbody = G("resumoRuas");
+  const selRua = G("selRuaImprimir");
   const posicoes = await fsListarTodos("posicoes");
   if (posicoes.length === 0) { tbody.innerHTML = `<tr><td colspan="4">Nenhuma posição cadastrada ainda.</td></tr>`; return; }
   const resumo = {};
@@ -830,12 +905,96 @@ async function carregarResumoRuas() {
     if (p.status === "ocupada") resumo[p.rua].ocupadas++;
   });
   tbody.innerHTML = "";
-  Object.keys(resumo).sort().forEach(rua => {
+  const ruasOrdenadas = Object.keys(resumo).sort();
+  ruasOrdenadas.forEach(rua => {
     const r = resumo[rua];
     const tr = document.createElement("tr");
     tr.innerHTML = `<td class="mono">${rua}</td><td>${r.total}</td><td>${r.ocupadas}</td><td>${r.total - r.ocupadas}</td>`;
     tbody.appendChild(tr);
   });
+
+  // Dropdown só com ruas que já existem — operador clica, não digita.
+  const selecaoAtual = selRua.value;
+  selRua.innerHTML = `<option value="">Todas as ruas</option>` + ruasOrdenadas.map(r => `<option value="${r}">${r}</option>`).join("");
+  if (ruasOrdenadas.includes(selecaoAtual)) selRua.value = selecaoAtual;
+}
+
+// ------------------------------------------------------------
+// IMPRESSÃO DE QR CODES
+// Gera o QR Code com o texto EXATO do campo "codigo" salvo no
+// Firestore — elimina o risco de divergência entre o que está
+// impresso na prateleira e o que o sistema espera ao escanear.
+// ------------------------------------------------------------
+G("btnImprimirQr").addEventListener("click", async () => {
+  const ruaEscolhida = G("selRuaImprimir").value;
+  const btn = G("btnImprimirQr");
+  btn.disabled = true;
+  btn.textContent = "Gerando...";
+
+  try {
+    const posicoes = ruaEscolhida
+      ? await fsBuscarPorCampo("posicoes", "rua", ruaEscolhida)
+      : await fsListarTodos("posicoes");
+
+    if (posicoes.length === 0) {
+      toast("Nenhuma posição encontrada para gerar QR Codes.", "err");
+      return;
+    }
+
+    // Um QR por RUA (não por posição individual) — o QR fica na
+    // entrada do corredor, em altura acessível. A seleção de
+    // nível/posição é feita manualmente dentro do app depois de
+    // escanear esse QR.
+    const ruasUnicas = [...new Set(posicoes.map(p => p.rua))].sort();
+
+    const etiquetas = await Promise.all(ruasUnicas.map(async (rua) => {
+      const dataUrl = await QRCode.toDataURL(rua, { width: 260, margin: 1 });
+      return { codigo: rua, dataUrl };
+    }));
+
+    abrirJanelaImpressao(etiquetas, ruaEscolhida || "Todas as ruas");
+  } catch (erro) {
+    toast("Erro ao gerar QR Codes: " + erro.message, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🖨️ Gerar e imprimir";
+  }
+});
+
+function abrirJanelaImpressao(etiquetas, tituloRua) {
+  const janela = window.open("", "_blank");
+  const html = `
+    <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>QR Codes de Entrada de Rua — ${tituloRua}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',system-ui,sans-serif;padding:12px}
+      .grade{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+      .etq{border:1px dashed #999;border-radius:6px;padding:16px;text-align:center;page-break-inside:avoid}
+      .etq img{width:100%;max-width:220px;height:auto}
+      .etq .cod{font-family:'Courier New',monospace;font-weight:700;font-size:20px;margin-top:10px;color:#024f2b}
+      .etq .sub{font-size:11px;color:#4a664a;margin-top:2px}
+      .etq .marca{font-size:10px;color:#739630;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+      @media print{.no-print{display:none}}
+    </style>
+    </head><body>
+      <div class="no-print" style="margin-bottom:14px">
+        <button onclick="window.print()" style="padding:8px 16px;background:#024f2b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ Imprimir</button>
+        <span style="font-size:12px;color:#555;margin-left:10px">${etiquetas.length} rua(s) — fixar na entrada do corredor</span>
+      </div>
+      <div class="grade">
+        ${etiquetas.map(e => `
+          <div class="etq">
+            <img src="${e.dataUrl}" alt="${e.codigo}">
+            <div class="cod">${e.codigo}</div>
+            <div class="sub">Entrada da rua</div>
+            <div class="marca">raguife</div>
+          </div>`).join("")}
+      </div>
+    </body></html>
+  `;
+  janela.document.write(html);
+  janela.document.close();
 }
 
 // ============================================================
