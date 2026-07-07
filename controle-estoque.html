@@ -218,8 +218,14 @@ td.mono{font-family:'Courier New',monospace}
 
         <div class="etapa" id="etapaArm2">
           <div class="ch"><span class="ct">2. Conferir dados</span></div>
+          <div class="alw" id="avisoConfiancaOcr" style="display:none"></div>
           <div class="alw" id="alertaRisco" style="display:none"></div>
           <div class="aler" id="msgErroSalvar" style="display:none"></div>
+          <details style="margin-bottom:14px;font-size:12px">
+            <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver texto bruto lido pelo OCR (depuração)</summary>
+            <textarea id="textoOcrBruto" readonly style="width:100%;height:120px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
+            <p style="color:var(--tx2);margin-top:4px">Se algum campo veio errado, copie esse texto e envie — ajuda a calibrar a extração com precisão, em vez de tentativa e erro.</p>
+          </details>
 
           <form id="formConferencia">
             <div class="fr">
@@ -826,6 +832,44 @@ window.cancelarPalletPendente = function () {
 // ------------------------------------------------------------
 // ETAPA 1: foto + OCR
 // ------------------------------------------------------------
+// ------------------------------------------------------------
+// PRÉ-PROCESSAMENTO DE IMAGEM para melhorar a leitura do OCR:
+// converte para escala de cinza, aumenta contraste e amplia a
+// resolução se a foto for pequena. Fotos reais de celular com
+// reflexo de plástico stretch costumam ter contraste ruim em
+// partes do texto — isso ajuda o Tesseract a não "desistir" de
+// ler certos trechos, que foi o problema real identificado (o
+// texto bruto do OCR estava faltando campos inteiros, não é um
+// problema de regex).
+// ------------------------------------------------------------
+function preprocessarImagemParaOcr(arquivo) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const larguraAlvo = Math.max(img.width, 1600); // amplia se a foto for pequena
+      const escala = larguraAlvo / img.width;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * escala;
+      canvas.height = img.height * escala;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const dados = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const px = dados.data;
+      const contraste = 1.4; // >1 aumenta o contraste
+      for (let i = 0; i < px.length; i += 4) {
+        const cinza = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+        const ajustado = Math.min(255, Math.max(0, (cinza - 128) * contraste + 128));
+        px[i] = px[i + 1] = px[i + 2] = ajustado;
+      }
+      ctx.putImageData(dados, 0, 0);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Falha ao gerar imagem processada")), "image/jpeg", 0.95);
+    };
+    img.onerror = () => reject(new Error("Falha ao carregar a imagem"));
+    img.src = URL.createObjectURL(arquivo);
+  });
+}
+
 G("inputFoto").addEventListener("change", async (e) => {
   const arquivo = e.target.files[0];
   if (!arquivo) return;
@@ -836,10 +880,29 @@ G("inputFoto").addEventListener("change", async (e) => {
     return;
   }
 
-  area.textContent = "🔎 Lendo dados da etiqueta...";
+  area.textContent = "🔧 Melhorando qualidade da imagem...";
   try {
-    const { data: { text } } = await Tesseract.recognize(arquivo, "por");
-    preencherFormularioArmazenagem(extrairCamposDaEtiqueta(text));
+    const imagemProcessada = await preprocessarImagemParaOcr(arquivo);
+
+    area.textContent = "🔎 Lendo dados da etiqueta...";
+    const { data } = await Tesseract.recognize(imagemProcessada, "por");
+    G("textoOcrBruto").value = data.text;
+
+    // Confiança baixa = foto provavelmente com reflexo/desfoque.
+    // Avisa o operador em vez de deixar passar um resultado ruim
+    // sem chamar atenção — ele decide se refaz a foto ou confere
+    // os campos manualmente com mais atenção. Mostrado na tela de
+    // CONFERÊNCIA (não na área de captura, que fica invisível
+    // assim que a tela muda).
+    const avisoConfianca = G("avisoConfiancaOcr");
+    if (data.confidence < 55) {
+      avisoConfianca.textContent = `⚠️ Leitura com baixa confiança (${Math.round(data.confidence)}%). Confira todos os campos com atenção redobrada, ou toque em "Refazer foto" com melhor iluminação.`;
+      avisoConfianca.style.display = "block";
+    } else {
+      avisoConfianca.style.display = "none";
+    }
+
+    preencherFormularioArmazenagem(extrairCamposDaEtiqueta(data.text));
     avaliarRiscoOpLote();
     irParaEtapaArm(2);
   } catch (erro) {
@@ -874,7 +937,7 @@ function avaliarRiscoOpLote() {
 }
 ["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
 
-window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; };
+window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("avisoConfiancaOcr").style.display = "none"; };
 
 G("formConferencia").addEventListener("submit", async (e) => {
   e.preventDefault();
