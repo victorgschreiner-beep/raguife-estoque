@@ -380,8 +380,8 @@ td.mono{font-family:'Courier New',monospace}
 </div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js" onerror="window.__qrLibFalhou=true"></script>
 
 <script type="module">
 // ============================================================
@@ -773,6 +773,12 @@ G("inputFoto").addEventListener("change", async (e) => {
   if (!arquivo) return;
   arquivoFotoAtual = arquivo;
   const area = G("areaProcessamento");
+
+  if (typeof Tesseract === "undefined") {
+    area.innerHTML = `<span style="color:#c0392b">Biblioteca de OCR não carregou (provável bloqueio de rede/CDN). Verifique a conexão com a internet e recarregue a página.</span>`;
+    return;
+  }
+
   area.textContent = "🔎 Lendo dados da etiqueta...";
   try {
     const { data: { text } } = await Tesseract.recognize(arquivo, "por");
@@ -926,6 +932,10 @@ async function carregarResumoRuas() {
 // impresso na prateleira e o que o sistema espera ao escanear.
 // ------------------------------------------------------------
 G("btnImprimirQr").addEventListener("click", async () => {
+  if (typeof QRCode === "undefined") {
+    toast("Biblioteca de QR Code não carregou (provável bloqueio de rede/CDN). Verifique a conexão com a internet e recarregue a página.", "err");
+    return;
+  }
   const ruaEscolhida = G("selRuaImprimir").value;
   const btn = G("btnImprimirQr");
   btn.disabled = true;
