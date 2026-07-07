@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raguife — Controle de Estoque de Pallets</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f4;--bg2:#ffffff;--bg3:#eef2ee;--bg4:#dde6dd;
+  --bd:#c8d8c8;--bd2:#b0c8b0;
+  --tx:#1a2e1a;--tx2:#4a664a;--tx3:#739630;
+  --ac:#024f2b;--ac2:#036b3a;--acbg:rgba(2,79,43,.10);
+  --gr:#024f2b;--or:#d29922;--rd:#c0392b;
+  --orbg:rgba(210,153,34,.15);--rdbg:rgba(192,57,43,.12);
+  --r:8px;--r2:12px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg3)}::-webkit-scrollbar-thumb{background:#024f2b;border-radius:3px}
+input,select{width:100%;padding:9px 12px;background:#f7faf7;border:1px solid #c8d8c8;border-radius:var(--r);color:#1a2e1a;font-size:13px;outline:none;font-family:inherit;transition:.15s}
+input:focus,select:focus{border-color:#024f2b;box-shadow:0 0 0 3px rgba(2,79,43,.15)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23739630' d='M5 7L0 2h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:var(--r);border:1px solid #c8d8c8;background:#f4f6f4;color:#1a2e1a;cursor:pointer;font-size:13px;font-weight:500;transition:.15s;font-family:inherit;white-space:nowrap}
+.btn:hover{background:#dde6dd}
+.bp{background:#024f2b;border-color:#024f2b;color:#fff}.bp:hover{background:#036b3a}
+.bg2{background:#739630;border-color:#739630;color:#fff}.bg2:hover{opacity:.85}
+.br{background:#c0392b;border-color:#c0392b;color:#fff}
+.bo{background:#d29922;border-color:#d29922;color:#fff}
+.bsm{padding:5px 11px;font-size:12px}.bxs{padding:3px 8px;font-size:11px}.bfw{width:100%}
+.lerr{color:#c0392b;font-size:12px;margin-top:8px;display:none;text-align:center}
+.lerr.visivel{display:block}
+button:disabled{opacity:.5;cursor:default}
+
+/* LOGIN */
+#pg-login{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#024f2b 0%,#036b3a 60%,#739630 100%)}
+.lbox{background:#fff;border-radius:var(--r2);padding:36px 32px;width:380px;max-width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25)}
+.logo{text-align:center;margin-bottom:24px}
+.logo-t{font-size:18px;font-weight:700;color:#024f2b;margin-top:10px}
+.logo-s{font-size:12px;color:#739630;margin-top:3px;font-weight:500}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12px;color:#4a664a;margin-bottom:5px;font-weight:500}
+
+/* TOPBAR / NAV */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;background:#024f2b;border-bottom:2px solid #739630;position:sticky;top:0;z-index:50;flex-wrap:wrap;gap:8px;box-shadow:0 2px 12px rgba(2,79,43,.25)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:#fff}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(115,150,48,.25);color:#b6d46a;border:1px solid rgba(115,150,48,.4)}
+.nav{display:flex;gap:2px;flex-wrap:wrap}
+.nb{padding:6px 13px;border:none;background:transparent;color:rgba(255,255,255,.75);border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;transition:.1s;font-family:inherit}
+.nb:hover{background:rgba(255,255,255,.12);color:#fff}.nb.on{background:#739630;color:#fff}
+.ubar{display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:rgba(115,150,48,.25);color:#b6d46a}
+.rtdot{width:8px;height:8px;border-radius:50%;background:#b6d46a;display:inline-block;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.content{flex:1;padding:16px;overflow-y:auto;max-width:1100px;margin:0 auto;width:100%}
+.scr{display:none}.scr.on{display:block}
+
+/* CARDS */
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--r2);padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(2,79,43,.06)}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.ct{font-size:11px;font-weight:700;color:#739630;text-transform:uppercase;letter-spacing:.06em}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.g2{grid-template-columns:1fr}}
+.mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.mc{background:#fff;border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;box-shadow:0 1px 4px rgba(2,79,43,.05)}
+.ml{font-size:10px;color:#739630;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-weight:600}
+.mv{font-size:22px;font-weight:700}
+.ms{font-size:11px;color:#4a664a;margin-top:2px}
+.cg{color:#024f2b}.co{color:#d29922}.cr{color:#c0392b}.cb{color:#036b3a}
+
+/* TABLE */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#024f2b;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #024f2b;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(2,79,43,.03)}
+td.mono{font-family:'Courier New',monospace}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.bvd{background:rgba(2,79,43,.1);color:#024f2b}
+.bam{background:rgba(210,153,34,.15);color:#8a5700}
+.baz{background:rgba(2,79,43,.08);color:#024f2b}
+.bcz{background:#eef2ee;color:#4a664a}
+.bpx{background:rgba(139,92,246,.15);color:#5b21b6}
+
+/* MODAL */
+.ov{position:fixed;inset:0;background:rgba(1,40,22,.65);z-index:200;display:none;align-items:center;justify-content:center;padding:12px}
+.ov.on{display:flex}
+.modal{background:#fff;border:1px solid #c8d8c8;border-radius:var(--r2);padding:22px 24px;width:560px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(2,79,43,.15)}
+.mt{font-size:16px;font-weight:700;margin-bottom:16px;color:#024f2b}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--bd)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media (max-width:480px){.fr{grid-template-columns:1fr}}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.fl{font-size:12px;color:#4a664a;font-weight:500}
+
+/* TOAST */
+#twrap{position:fixed;bottom:18px;right:18px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.tos{padding:11px 16px;border-radius:var(--r);font-size:13px;font-weight:500;animation:tin .2s ease;max-width:320px;color:#fff}
+.tok{background:#024f2b}.terr{background:#c0392b}.tinf{background:#739630}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ALERTAS */
+.alw{padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:12px;background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);color:#8a5700}
+.ali{padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:12px;background:rgba(2,79,43,.08);border:1px solid rgba(2,79,43,.2);color:#024f2b}
+.aler{padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:12px;background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.25);color:#c0392b}
+
+/* WIZARD DE ARMAZENAGEM */
+.etapa{display:none}.etapa.ativa{display:block}
+.indicador-etapas{display:flex;gap:6px;margin-bottom:18px}
+.indicador-etapas .ponto{flex:1;height:4px;border-radius:4px;background:var(--bd)}
+.indicador-etapas .ponto.concluida{background:#024f2b}
+.indicador-etapas .ponto.atual{background:#d29922}
+#leitorQr{width:100%;border-radius:var(--r2);overflow:hidden}
+.campo-risco{border:2px solid #d29922 !important;background:rgba(210,153,34,.06)}
+
+#loader{position:fixed;inset:0;background:rgba(1,40,22,.7);z-index:1000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#loader.on{display:flex}
+.spin{width:34px;height:34px;border:3px solid rgba(115,150,48,.3);border-top-color:#739630;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="twrap"></div>
+<div id="loader"><div class="spin"></div><div style="color:rgba(255,255,255,.8);font-size:13px" id="lmsg">Aguarde...</div></div>
+
+<!-- LOGIN -->
+<div id="pg-login">
+  <div class="lbox">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" height="40" style="display:block;margin:0 auto">
+        <rect x="0" y="4" width="140" height="52" rx="3" fill="#024f2b"/>
+        <text x="70" y="38" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#ffffff" text-anchor="middle">raguife</text>
+        <rect x="148" y="4" width="52" height="52" rx="3" fill="none" stroke="#024f2b" stroke-width="3"/>
+        <circle cx="163" cy="24" r="5" fill="#024f2b"/>
+        <circle cx="174" cy="24" r="5" fill="#024f2b"/>
+        <circle cx="185" cy="24" r="5" fill="#024f2b"/>
+      </svg>
+      <div class="logo-t">Controle de Estoque</div>
+      <div class="logo-s">Localização de Pallets por QR Code</div>
+    </div>
+    <div class="fld"><label>Usuário</label><input type="text" id="lu" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('lp').focus()"></div>
+    <div class="fld"><label>PIN</label><input type="password" id="lp" inputmode="numeric" maxlength="6" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="lerr" id="lerr">Usuário ou PIN incorretos.</div>
+    <button class="btn bp bfw" style="margin-top:18px;padding:11px" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="pg-app" style="display:none;flex-direction:column;min-height:100vh">
+  <div class="topbar">
+    <div class="brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" height="30" style="display:block">
+        <rect x="0" y="4" width="140" height="52" rx="3" fill="#fff" fill-opacity=".15"/>
+        <text x="70" y="38" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#ffffff" text-anchor="middle">raguife</text>
+        <rect x="148" y="4" width="52" height="52" rx="3" fill="none" stroke="#b6d46a" stroke-width="3"/>
+        <circle cx="163" cy="24" r="5" fill="#b6d46a"/><circle cx="174" cy="24" r="5" fill="#b6d46a"/><circle cx="185" cy="24" r="5" fill="#b6d46a"/>
+      </svg>
+      <span class="pill" id="pfil">—</span>
+    </div>
+    <div class="nav">
+      <button class="nb on" id="nb-dashboard" onclick="go('dashboard',this)">Dashboard</button>
+      <button class="nb" id="nb-armazenagem" onclick="go('armazenagem',this)">Armazenar</button>
+      <button class="nb" id="nb-movimentacao" onclick="go('movimentacao',this)" disabled style="opacity:.5">Movimentação</button>
+      <button class="nb" id="nb-expedicao" onclick="go('expedicao',this)" disabled style="opacity:.5">Expedição</button>
+      <button class="nb" id="nb-consultas" onclick="go('consultas',this)" disabled style="opacity:.5">Consultas</button>
+      <button class="nb" id="nb-estrutura" onclick="go('estrutura',this)">Ruas / Posições</button>
+      <button class="nb" id="nb-usuarios" onclick="go('usuarios',this)">Usuários</button>
+    </div>
+    <div class="ubar">
+      <span class="rtdot"></span>
+      <span id="unm"></span>
+      <div class="av" id="uav">?</div>
+      <button class="btn bsm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="scr on" id="scr-dashboard">
+      <div class="card">
+        <div class="ch"><span class="ct">Visão Geral do Estoque</span><span style="font-size:11px;color:#739630">&#9679; ao vivo</span></div>
+        <div class="mrow" id="metrics"><div class="mc"><div class="ml">Carregando</div><div class="mv">—</div></div></div>
+      </div>
+      <div style="font-size:12px;color:var(--tx2)">
+        Módulos 1 e 2 (Fundação + Armazenagem) ativos. Movimentação, Expedição, Consultas e Dashboard gerencial completo chegam nas próximas entregas.
+      </div>
+    </div>
+
+    <!-- ARMAZENAGEM -->
+    <div class="scr" id="scr-armazenagem">
+      <div class="card">
+        <div class="indicador-etapas">
+          <div class="ponto" data-etapa="1"></div>
+          <div class="ponto" data-etapa="2"></div>
+          <div class="ponto" data-etapa="3"></div>
+        </div>
+
+        <div class="etapa" id="etapaArm1">
+          <div class="ch"><span class="ct">1. Ler QR Code da posição</span></div>
+          <div id="leitorQr"></div>
+          <div class="aler" id="msgErroPosicao" style="display:none"></div>
+          <p style="font-size:12px;color:var(--tx2);margin-top:8px" id="statusPosicao">Aponte a câmera para o QR Code fixado na posição do estoque.</p>
+        </div>
+
+        <div class="etapa" id="etapaArm2">
+          <div class="ch"><span class="ct">2. Foto da etiqueta do pallet</span></div>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Posição confirmada: <strong id="posicaoConfirmada"></strong></p>
+          <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
+          <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
+          <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
+        </div>
+
+        <div class="etapa" id="etapaArm3">
+          <div class="ch"><span class="ct">3. Conferir dados antes de salvar</span></div>
+          <div class="alw" id="alertaRisco" style="display:none"></div>
+          <div class="aler" id="msgErroSalvar" style="display:none"></div>
+
+          <form id="formConferencia">
+            <div class="fr">
+              <div class="fg"><label class="fl">Produto</label><input type="text" id="campoProduto"></div>
+              <div class="fg"><label class="fl">Descrição</label><input type="text" id="campoDescricao"></div>
+            </div>
+            <div class="fr">
+              <div class="fg"><label class="fl">Ordem de Produção</label><input type="text" id="campoOP" class="mono"></div>
+              <div class="fg"><label class="fl">Lote</label><input type="text" id="campoLote" class="mono"></div>
+            </div>
+            <div class="fr">
+              <div class="fg"><label class="fl">Sequência</label><input type="text" id="campoSequencia" class="mono"></div>
+              <div class="fg"><label class="fl">Tipo de Armazenamento</label><input type="text" id="campoTipoArmazenamento"></div>
+            </div>
+            <div class="fr">
+              <div class="fg"><label class="fl">Quantidade</label><input type="text" id="campoQuantidade"></div>
+              <div class="fg"><label class="fl">Unidade</label><input type="text" id="campoUnidade"></div>
+            </div>
+            <div class="fr">
+              <div class="fg"><label class="fl">Data de Fabricação</label><input type="text" id="campoDataFab" placeholder="DD/MM/AAAA"></div>
+              <div class="fg"><label class="fl">Data de Validade</label><input type="text" id="campoDataVal" placeholder="DD/MM/AAAA"></div>
+            </div>
+            <button type="submit" class="btn bp bfw" style="padding:12px;margin-bottom:10px">Confirmar e salvar</button>
+            <button type="button" class="btn bfw" onclick="voltarParaFoto()">Refazer foto</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOVIMENTAÇÃO / EXPEDIÇÃO / CONSULTAS: placeholders -->
+    <div class="scr" id="scr-movimentacao"><div class="card">Módulo em desenvolvimento.</div></div>
+    <div class="scr" id="scr-expedicao"><div class="card">Módulo em desenvolvimento.</div></div>
+    <div class="scr" id="scr-consultas"><div class="card">Módulo em desenvolvimento.</div></div>
+
+    <!-- ESTRUTURA (ruas/posições) -->
+    <div class="scr" id="scr-estrutura">
+      <div class="card">
+        <div class="ch"><span class="ct">Gerar posições em lote</span></div>
+        <p style="font-size:12px;color:var(--tx2);margin-bottom:16px">
+          Informe o padrão da rua e o sistema gera todas as combinações automaticamente, já no formato usado nos QR Codes físicos (ex: RUA01-A-01).
+        </p>
+        <div class="aler" id="estErro" style="display:none"></div>
+        <div class="ali" id="estSucesso" style="display:none"></div>
+        <form id="formGerar">
+          <div class="fr">
+            <div class="fg"><label class="fl">Número da rua</label><input type="number" id="numeroRua" min="1" max="99" required></div>
+            <div class="fg"><label class="fl">Níveis (separados por vírgula)</label><input type="text" id="niveis" required placeholder="Ex: A,B,C"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label class="fl">Posição inicial</label><input type="number" id="posicaoInicio" min="1" required></div>
+            <div class="fg"><label class="fl">Posição final</label><input type="number" id="posicaoFim" min="1" required></div>
+          </div>
+          <button type="button" class="btn" id="btnPreVisualizar" style="margin-bottom:12px">Pré-visualizar</button>
+          <div id="preVisualizacao" style="font-size:12px;color:var(--tx2);margin-bottom:12px"></div>
+          <button type="submit" class="btn bp" id="btnGerar" disabled>Confirmar e gerar posições</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">Ocupação por rua</span></div>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Rua</th><th>Total</th><th>Ocupadas</th><th>Livres</th></tr></thead>
+            <tbody id="resumoRuas"><tr><td colspan="4">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- USUÁRIOS -->
+    <div class="scr" id="scr-usuarios">
+      <div class="card">
+        <div class="ch"><span class="ct">Novo usuário</span></div>
+        <div class="aler" id="usrErro" style="display:none"></div>
+        <div class="ali" id="usrSucesso" style="display:none"></div>
+        <form id="formNovoUsuario">
+          <div class="fr">
+            <div class="fg"><label class="fl">Nome (usado no login)</label><input type="text" id="novoNome" required></div>
+            <div class="fg">
+              <label class="fl">Perfil de acesso</label>
+              <select id="novoPerfil" required>
+                <option value="administrador">Administrador</option>
+                <option value="estoque">Almoxarifado / Estoque</option>
+                <option value="expedicao">Expedição</option>
+                <option value="consulta">Consulta (somente leitura)</option>
+              </select>
+            </div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label class="fl">PIN (4 a 6 dígitos)</label><input type="password" id="novoPin" inputmode="numeric" minlength="4" maxlength="6" required></div>
+          </div>
+          <button type="submit" class="btn bp" id="btnCriarUsuario">Criar usuário</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">Usuários cadastrados</span></div>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Nome</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
+            <tbody id="listaUsuarios"><tr><td colspan="4">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO DE USUÁRIO -->
+<div class="ov" id="ovEditarUsuario">
+  <div class="modal">
+    <div class="mt">Editar usuário</div>
+    <div class="aler" id="editUsrErro" style="display:none"></div>
+    <div class="fg"><label class="fl">Nome</label><input type="text" id="editNome" disabled></div>
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">Perfil</label>
+        <select id="editPerfil">
+          <option value="administrador">Administrador</option>
+          <option value="estoque">Almoxarifado / Estoque</option>
+          <option value="expedicao">Expedição</option>
+          <option value="consulta">Consulta (somente leitura)</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Novo PIN (deixe em branco para manter)</label><input type="password" id="editPin" inputmode="numeric" minlength="4" maxlength="6"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModalEdicaoUsuario()">Cancelar</button>
+      <button class="btn bp" onclick="salvarEdicaoUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script type="module">
+// ============================================================
+// FIREBASE
+// ============================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
+  query, where, orderBy, runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBPvLS-xJWj75nvqOA1EqfuxDhOo1KF9J0",
+  authDomain: "controle-estoque-pallets-v2.firebaseapp.com",
+  projectId: "controle-estoque-pallets-v2",
+  storageBucket: "controle-estoque-pallets-v2.firebasestorage.app",
+  messagingSenderId: "302243133391",
+  appId: "1:302243133391:web:ea4fed89351857bffd44ba"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+// Autenticação anônima silenciosa: garante request.auth != null nas regras
+// do Firestore, sem exigir nenhum login extra do usuário. Não distingue
+// perfil a nível de banco — ver nota completa em firestore.rules.
+const authReady = signInAnonymously(auth).then(() => true).catch((e) => { console.error("Falha auth anônima:", e); return false; });
+
+// ============================================================
+// CAMADA FIRESTORE — funções únicas de acesso, evita duplicação
+// ============================================================
+async function fsBuscarPorId(colecao, id) {
+  await authReady;
+  const snap = await getDoc(doc(db, colecao, id));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+async function fsListarTodos(colecao) {
+  await authReady;
+  const snap = await getDocs(collection(db, colecao));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function fsBuscarPorCampo(colecao, campo, valor) {
+  await authReady;
+  const q = query(collection(db, colecao), where(campo, "==", valor));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function fsCriar(colecao, dados, idPersonalizado) {
+  await authReady;
+  if (idPersonalizado) { await setDoc(doc(db, colecao, idPersonalizado), dados); return idPersonalizado; }
+  const refNovo = doc(collection(db, colecao));
+  await setDoc(refNovo, dados);
+  return refNovo.id;
+}
+async function fsAtualizar(colecao, id, dados) {
+  await authReady;
+  await updateDoc(doc(db, colecao, id), dados);
+}
+
+// ============================================================
+// PERMISSÕES — fonte única da verdade por perfil
+// ============================================================
+const PERMISSOES = {
+  administrador: { armazenar:true, movimentar:true, expedir:true, consultar:true, gerenciarUsuarios:true, gerenciarEstrutura:true, verDashboard:true },
+  estoque:       { armazenar:true, movimentar:true, expedir:false, consultar:true, gerenciarUsuarios:false, gerenciarEstrutura:false, verDashboard:true },
+  expedicao:     { armazenar:false, movimentar:false, expedir:true, consultar:true, gerenciarUsuarios:false, gerenciarEstrutura:false, verDashboard:false },
+  consulta:      { armazenar:false, movimentar:false, expedir:false, consultar:true, gerenciarUsuarios:false, gerenciarEstrutura:false, verDashboard:true }
+};
+function podeAcessar(perfil, capacidade) {
+  return !!(PERMISSOES[perfil] && PERMISSOES[perfil][capacidade]);
+}
+
+// ============================================================
+// AUTENTICAÇÃO — login por nome + PIN, via Firestore puro
+// ============================================================
+const MSG_ACESSO_NEGADO = "Usuário ou PIN incorretos, ou usuário não autorizado.";
+
+async function gerarHashPin(pin) {
+  const dados = new TextEncoder().encode(String(pin).trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", dados);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+let SES = null; // sessão do usuário logado, em memória (espelha sessionStorage)
+
+async function realizarLogin(nome, pin) {
+  const nomeLimpo = (nome || "").trim();
+  if (!nomeLimpo || !pin) throw new Error(MSG_ACESSO_NEGADO);
+  const encontrados = await fsBuscarPorCampo("usuarios", "nome", nomeLimpo);
+  if (encontrados.length === 0) throw new Error(MSG_ACESSO_NEGADO);
+  const u = encontrados[0];
+  if (u.ativo === false) throw new Error(MSG_ACESSO_NEGADO);
+  const hash = await gerarHashPin(pin);
+  if (u.pinHash !== hash) throw new Error(MSG_ACESSO_NEGADO);
+  const sessao = { uid: u.id, nome: u.nome, perfil: u.perfil };
+  sessionStorage.setItem("usuario", JSON.stringify(sessao));
+  return sessao;
+}
+
+function restaurarSessao() {
+  const bruto = sessionStorage.getItem("usuario");
+  return bruto ? JSON.parse(bruto) : null;
+}
+
+// ============================================================
+// OCR — extração de campos da etiqueta (layout fixo Raguife)
+// ============================================================
+function ocrNormalizar(texto) {
+  return texto.replace(/\r/g, "\n").replace(/[ \t]+/g, " ").split("\n").map(l => l.trim()).filter(Boolean);
+}
+function ocrBuscarValorAposRotulo(linhas, rotulos) {
+  for (let i = 0; i < linhas.length; i++) {
+    const linha = linhas[i].toLowerCase();
+    for (const rotulo of rotulos) {
+      if (linha.includes(rotulo)) {
+        const idx = linha.indexOf(rotulo);
+        const restoMesmaLinha = linhas[i].slice(idx + rotulo.length).replace(/^[:\-–]\s*/, "").trim();
+        if (restoMesmaLinha) return restoMesmaLinha;
+        if (linhas[i + 1]) return linhas[i + 1].trim();
+      }
+    }
+  }
+  return "";
+}
+function ocrExtrairQuantidadeEUnidade(texto) {
+  const m = texto.match(/(\d+[.,]?\d*)\s*(sc|kg|un|ton|l)\b/i);
+  if (!m) return { quantidade: "", unidade: "" };
+  return { quantidade: m[1].replace(",", "."), unidade: m[2].toUpperCase() };
+}
+function extrairCamposDaEtiqueta(textoBruto) {
+  const linhas = ocrNormalizar(textoBruto);
+  const textoCompleto = linhas.join(" ");
+  const ordemProducao = ocrBuscarValorAposRotulo(linhas, ["ordem de produ"]);
+  const lote = (ocrBuscarValorAposRotulo(linhas, ["lote"]).split(/\s+/)[0] || "");
+  const sequencia = ocrBuscarValorAposRotulo(linhas, ["sequ"]);
+  const tipoArmazenamento = ocrBuscarValorAposRotulo(linhas, ["tipo de armazenamento"]);
+  const quantidadeTexto = ocrBuscarValorAposRotulo(linhas, ["quantidade apontada", "quantidade"]);
+  const datas = [...textoCompleto.matchAll(/\d{2}\/\d{2}\/\d{4}/g)].map(m => m[0]);
+  const { quantidade, unidade } = ocrExtrairQuantidadeEUnidade(quantidadeTexto || textoCompleto);
+  const linhaProduto = linhas.find(l => l.includes("–") || l.includes("-")) || "";
+  const [produto, descricao] = linhaProduto.split(/[-–]/).map(s => (s || "").trim());
+  return {
+    produto: produto || "", descricao: descricao || "",
+    ordemProducao: ordemProducao.replace(/\s/g, ""), lote: lote.replace(/\s/g, ""),
+    sequencia: sequencia.replace(/\s/g, ""), tipoArmazenamento: tipoArmazenamento || "",
+    quantidade: quantidade || "", unidade: unidade || "",
+    dataFabricacao: datas[0] || "", dataValidade: datas[1] || ""
+  };
+}
+function validarRiscoOpLote(ordemProducao, lote) {
+  if (!ordemProducao || !lote) return { risco: false };
+  if (ordemProducao === lote) return { risco: true, motivo: "Ordem de Produção e Lote foram lidos como idênticos. Verifique a etiqueta manualmente." };
+  const dif = Math.abs(parseInt(ordemProducao.slice(-3), 10) - parseInt(lote.slice(-3), 10));
+  if (!isNaN(dif) && dif <= 2) return { risco: true, motivo: "Ordem de Produção e Lote são muito parecidos. Confira os dois campos com atenção antes de salvar." };
+  return { risco: false };
+}
+
+// ============================================================
+// PALLETS — regra de negócio de entrada (transaction atômica)
+// ============================================================
+async function buscarPalletAtivo(ordemProducao, lote, sequencia) {
+  await authReady;
+  const q = query(collection(db, "pallets"),
+    where("ordemProducao", "==", ordemProducao),
+    where("lote", "==", lote),
+    where("sequencia", "==", sequencia),
+    where("status", "==", "em_estoque"));
+  const snap = await getDocs(q);
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+}
+async function registrarEntradaPallet({ dadosPallet, codigoPosicao, usuario }) {
+  const existente = await buscarPalletAtivo(dadosPallet.ordemProducao, dadosPallet.lote, dadosPallet.sequencia);
+  if (existente) {
+    throw new Error(`Este pallet (OP ${dadosPallet.ordemProducao} / Lote ${dadosPallet.lote} / Seq ${dadosPallet.sequencia}) já está registrado na posição ${existente.posicaoCompleta}. Verifique se não é duplicidade de leitura.`);
+  }
+  const refPallet = doc(collection(db, "pallets"));
+  const refPosicao = doc(db, "posicoes", codigoPosicao);
+  const refMovimentacao = doc(collection(db, "movimentacoes"));
+
+  await runTransaction(db, async (t) => {
+    const posSnap = await t.get(refPosicao);
+    if (!posSnap.exists()) throw new Error(`Posição "${codigoPosicao}" não está cadastrada no sistema.`);
+    if (posSnap.data().status === "ocupada") throw new Error(`Posição "${codigoPosicao}" já está ocupada por outro pallet.`);
+
+    t.set(refPallet, { ...dadosPallet, posicaoCompleta: codigoPosicao, status: "em_estoque", usuarioArmazenagem: usuario.nome, dataEntrada: serverTimestamp(), usuarioExpedicao: null, dataSaida: null });
+    t.update(refPosicao, { status: "ocupada", palletId: refPallet.id });
+    t.set(refMovimentacao, { palletId: refPallet.id, tipo: "entrada", origem: null, destino: codigoPosicao, usuario: usuario.nome, data: serverTimestamp() });
+  });
+  return refPallet.id;
+}
+
+// ============================================================
+// UI — HELPERS
+// ============================================================
+function G(id) { return document.getElementById(id); }
+function toast(msg, tipo) {
+  const el = document.createElement("div");
+  el.className = "tos " + (tipo === "err" ? "terr" : tipo === "inf" ? "tinf" : "tok");
+  el.textContent = msg;
+  G("twrap").appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+function ld(on, msg) { G("loader").classList.toggle("on", on); if (msg) G("lmsg").textContent = msg; }
+
+const NOME_PERFIL = { administrador: "Administrador", estoque: "Almoxarifado / Estoque", expedicao: "Expedição", consulta: "Consulta" };
+const COR_PERFIL = { administrador: "#8b5cf6", estoque: "#2ea043", expedicao: "#d29922", consulta: "#1f6feb" };
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+window.doLogin = async function () {
+  const nome = G("lu").value, pin = G("lp").value;
+  const lerr = G("lerr");
+  lerr.classList.remove("visivel");
+  if (!nome.trim() || !pin.trim()) return;
+
+  ld(true, "Autenticando...");
+  try {
+    SES = await realizarLogin(nome, pin);
+    ld(false);
+    entrarNoApp();
+  } catch (erro) {
+    ld(false);
+    lerr.textContent = erro.message || MSG_ACESSO_NEGADO;
+    lerr.classList.add("visivel");
+  }
+};
+
+window.doLogout = function () {
+  pararLeitorQr();
+  sessionStorage.removeItem("usuario");
+  SES = null;
+  G("pg-app").style.display = "none";
+  G("pg-login").style.display = "flex";
+};
+
+function entrarNoApp() {
+  G("pg-login").style.display = "none";
+  G("pg-app").style.display = "flex";
+  G("unm").textContent = SES.nome;
+  G("pfil").textContent = (NOME_PERFIL[SES.perfil] || SES.perfil).toUpperCase();
+  const iniciais = SES.nome.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
+  G("uav").textContent = iniciais;
+  const cor = COR_PERFIL[SES.perfil] || "#739630";
+  G("uav").style.background = cor + "22";
+  G("uav").style.color = cor;
+
+  // Esconde no menu o que o perfil não pode acessar
+  G("nb-armazenagem").style.display = podeAcessar(SES.perfil, "armazenar") ? "" : "none";
+  G("nb-estrutura").style.display = podeAcessar(SES.perfil, "gerenciarEstrutura") ? "" : "none";
+  G("nb-usuarios").style.display = podeAcessar(SES.perfil, "gerenciarUsuarios") ? "" : "none";
+
+  go("dashboard");
+}
+
+// ============================================================
+// NAVEGAÇÃO (SPA)
+// ============================================================
+window.go = function (tela, btn) {
+  if (tela !== "armazenagem") pararLeitorQr();
+
+  document.querySelectorAll(".scr").forEach(el => el.classList.remove("on"));
+  document.querySelectorAll(".nb").forEach(el => el.classList.remove("on"));
+  const alvo = G("scr-" + tela);
+  if (alvo) alvo.classList.add("on");
+  if (btn) btn.classList.add("on");
+  else { const nb = G("nb-" + tela); if (nb) nb.classList.add("on"); }
+
+  if (tela === "dashboard") renderDashboard();
+  else if (tela === "armazenagem") iniciarFluxoArmazenagem();
+  else if (tela === "estrutura") renderEstrutura();
+  else if (tela === "usuarios") renderUsuarios();
+};
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function renderDashboard() {
+  const container = G("metrics");
+  try {
+    const [posicoes, pallets] = await Promise.all([fsListarTodos("posicoes"), fsListarTodos("pallets")]);
+    const total = posicoes.length;
+    const ocupadas = posicoes.filter(p => p.status === "ocupada").length;
+    const livres = total - ocupadas;
+    const emEstoque = pallets.filter(p => p.status === "em_estoque").length;
+    container.innerHTML = `
+      <div class="mc"><div class="ml">Posições Totais</div><div class="mv">${total}</div></div>
+      <div class="mc"><div class="ml">Ocupadas</div><div class="mv cr">${ocupadas}</div></div>
+      <div class="mc"><div class="ml">Livres</div><div class="mv cg">${livres}</div></div>
+      <div class="mc"><div class="ml">Pallets em Estoque</div><div class="mv cb">${emEstoque}</div></div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="mc"><div class="ml">Erro</div><div class="ms">${e.message}</div></div>`;
+  }
+}
+
+// ============================================================
+// ARMAZENAGEM (wizard: QR -> foto -> OCR -> conferência)
+// ============================================================
+let leitorQr = null, codigoPosicaoLida = null, arquivoFotoAtual = null;
+
+function irParaEtapaArm(numero) {
+  document.querySelectorAll("#scr-armazenagem .etapa").forEach(el => el.classList.remove("ativa"));
+  G("etapaArm" + numero).classList.add("ativa");
+  document.querySelectorAll("#scr-armazenagem .indicador-etapas .ponto").forEach(p => {
+    const n = parseInt(p.dataset.etapa, 10);
+    p.classList.toggle("concluida", n < numero);
+    p.classList.toggle("atual", n === numero);
+  });
+}
+
+function pararLeitorQr() {
+  if (leitorQr) { try { leitorQr.stop(); } catch (e) {} leitorQr = null; }
+}
+
+function iniciarFluxoArmazenagem() {
+  if (!podeAcessar(SES.perfil, "armazenar")) { toast("Você não tem permissão para armazenar pallets.", "err"); go("dashboard"); return; }
+  codigoPosicaoLida = null; arquivoFotoAtual = null;
+  G("msgErroPosicao").style.display = "none";
+  irParaEtapaArm(1);
+  leitorQr = new Html5Qrcode("leitorQr");
+  Html5Qrcode.getCameras().then(cameras => {
+    const traseira = cameras.find(c => /back|traseira|rear/i.test(c.label)) || cameras[cameras.length - 1];
+    leitorQr.start(traseira ? traseira.id : { facingMode: "environment" }, { fps: 10, qrbox: 240 }, onQrLida, () => {});
+  }).catch(() => {
+    G("msgErroPosicao").textContent = "Não foi possível acessar a câmera. Verifique as permissões do navegador.";
+    G("msgErroPosicao").style.display = "block";
+  });
+}
+
+async function onQrLida(codigoLido) {
+  const msgErro = G("msgErroPosicao");
+  msgErro.style.display = "none";
+  const posicao = await fsBuscarPorId("posicoes", codigoLido);
+  if (!posicao) { msgErro.textContent = `Posição "${codigoLido}" não encontrada no sistema.`; msgErro.style.display = "block"; return; }
+  if (posicao.status === "ocupada") { msgErro.textContent = `Posição "${codigoLido}" já está ocupada. Escolha outra posição.`; msgErro.style.display = "block"; return; }
+
+  codigoPosicaoLida = codigoLido;
+  pararLeitorQr();
+  G("posicaoConfirmada").textContent = codigoLido;
+  irParaEtapaArm(2);
+}
+
+G("inputFoto").addEventListener("change", async (e) => {
+  const arquivo = e.target.files[0];
+  if (!arquivo) return;
+  arquivoFotoAtual = arquivo;
+  const area = G("areaProcessamento");
+  area.textContent = "🔎 Lendo dados da etiqueta...";
+  try {
+    const { data: { text } } = await Tesseract.recognize(arquivo, "por");
+    preencherFormularioArmazenagem(extrairCamposDaEtiqueta(text));
+    avaliarRiscoOpLote();
+    irParaEtapaArm(3);
+  } catch (erro) {
+    area.innerHTML = `<span style="color:#c0392b">Falha ao processar a imagem. Tente novamente com melhor iluminação.</span>`;
+  }
+});
+
+window.voltarParaFoto = function () { irParaEtapaArm(2); G("areaProcessamento").textContent = ""; };
+
+function preencherFormularioArmazenagem(c) {
+  G("campoProduto").value = c.produto; G("campoDescricao").value = c.descricao;
+  G("campoOP").value = c.ordemProducao; G("campoLote").value = c.lote;
+  G("campoSequencia").value = c.sequencia; G("campoTipoArmazenamento").value = c.tipoArmazenamento;
+  G("campoQuantidade").value = c.quantidade; G("campoUnidade").value = c.unidade;
+  G("campoDataFab").value = c.dataFabricacao; G("campoDataVal").value = c.dataValidade;
+}
+
+function avaliarRiscoOpLote() {
+  const op = G("campoOP").value, lote = G("campoLote").value;
+  const r = validarRiscoOpLote(op, lote);
+  const alerta = G("alertaRisco");
+  if (r.risco) {
+    alerta.textContent = "⚠️ " + r.motivo; alerta.style.display = "block";
+    G("campoOP").classList.add("campo-risco"); G("campoLote").classList.add("campo-risco");
+  } else {
+    alerta.style.display = "none";
+    G("campoOP").classList.remove("campo-risco"); G("campoLote").classList.remove("campo-risco");
+  }
+}
+["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
+
+G("formConferencia").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msgErro = G("msgErroSalvar");
+  msgErro.style.display = "none";
+
+  const dadosPallet = {
+    produto: G("campoProduto").value.trim(), descricao: G("campoDescricao").value.trim(),
+    ordemProducao: G("campoOP").value.trim(), lote: G("campoLote").value.trim(),
+    sequencia: G("campoSequencia").value.trim(), tipoArmazenamento: G("campoTipoArmazenamento").value.trim(),
+    quantidade: parseFloat(G("campoQuantidade").value.replace(",", ".")) || 0, unidade: G("campoUnidade").value.trim(),
+    dataFabricacao: G("campoDataFab").value.trim(), dataValidade: G("campoDataVal").value.trim()
+  };
+  if (!dadosPallet.ordemProducao || !dadosPallet.lote) { msgErro.textContent = "Ordem de Produção e Lote são obrigatórios."; msgErro.style.display = "block"; return; }
+
+  const btn = e.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    await registrarEntradaPallet({ dadosPallet, codigoPosicao: codigoPosicaoLida, usuario: SES });
+    toast("Pallet armazenado com sucesso.", "ok");
+    e.target.reset();
+    go("dashboard");
+  } catch (erro) {
+    msgErro.textContent = erro.message || "Erro ao salvar. Tente novamente.";
+    msgErro.style.display = "block";
+  } finally {
+    btn.disabled = false; btn.textContent = "Confirmar e salvar";
+  }
+});
+
+// ============================================================
+// ESTRUTURA (ruas/posições)
+// ============================================================
+function gerarListaPosicoes() {
+  const numeroRua = parseInt(G("numeroRua").value, 10);
+  const niveis = G("niveis").value.split(",").map(n => n.trim().toUpperCase()).filter(Boolean);
+  const posInicio = parseInt(G("posicaoInicio").value, 10);
+  const posFim = parseInt(G("posicaoFim").value, 10);
+  const lista = [];
+  if (!numeroRua || niveis.length === 0 || !posInicio || !posFim || posFim < posInicio) return lista;
+  const ruaFmt = "RUA" + String(numeroRua).padStart(2, "0");
+  for (const nivel of niveis) {
+    for (let p = posInicio; p <= posFim; p++) {
+      const posFmt = String(p).padStart(2, "0");
+      lista.push({ codigo: `${ruaFmt}-${nivel}-${posFmt}`, rua: ruaFmt, nivel, posicao: posFmt });
+    }
+  }
+  return lista;
+}
+
+function renderEstrutura() {
+  carregarResumoRuas();
+  G("btnPreVisualizar").onclick = () => {
+    const lista = gerarListaPosicoes();
+    const preview = G("preVisualizacao"), btnGerar = G("btnGerar");
+    if (lista.length === 0) { preview.textContent = "Preencha os campos corretamente para pré-visualizar."; btnGerar.disabled = true; return; }
+    preview.innerHTML = `<strong>${lista.length} posições</strong> serão criadas. Exemplos: ${lista.slice(0,5).map(p=>p.codigo).join(", ")}${lista.length>5?"...":""}`;
+    btnGerar.disabled = false;
+  };
+  G("formGerar").onsubmit = async (e) => {
+    e.preventDefault();
+    const erroEl = G("estErro"), sucessoEl = G("estSucesso");
+    erroEl.style.display = "none"; sucessoEl.style.display = "none";
+    const lista = gerarListaPosicoes();
+    const btnGerar = G("btnGerar");
+    btnGerar.disabled = true; btnGerar.textContent = "Gerando...";
+    try {
+      let criadas = 0, jaExistiam = 0;
+      for (const posicao of lista) {
+        const existente = await fsBuscarPorId("posicoes", posicao.codigo);
+        if (existente) { jaExistiam++; continue; }
+        await fsCriar("posicoes", { ...posicao, status: "livre", palletId: null }, posicao.codigo);
+        criadas++;
+      }
+      sucessoEl.textContent = `${criadas} posições criadas.` + (jaExistiam > 0 ? ` ${jaExistiam} já existiam e foram ignoradas.` : "");
+      sucessoEl.style.display = "block";
+      G("formGerar").reset(); G("preVisualizacao").textContent = "";
+      carregarResumoRuas();
+    } catch (erro) {
+      erroEl.textContent = erro.message || "Erro ao gerar posições."; erroEl.style.display = "block";
+    } finally {
+      btnGerar.disabled = false; btnGerar.textContent = "Confirmar e gerar posições";
+    }
+  };
+}
+
+async function carregarResumoRuas() {
+  const tbody = G("resumoRuas");
+  const posicoes = await fsListarTodos("posicoes");
+  if (posicoes.length === 0) { tbody.innerHTML = `<tr><td colspan="4">Nenhuma posição cadastrada ainda.</td></tr>`; return; }
+  const resumo = {};
+  posicoes.forEach(p => {
+    if (!resumo[p.rua]) resumo[p.rua] = { total: 0, ocupadas: 0 };
+    resumo[p.rua].total++;
+    if (p.status === "ocupada") resumo[p.rua].ocupadas++;
+  });
+  tbody.innerHTML = "";
+  Object.keys(resumo).sort().forEach(rua => {
+    const r = resumo[rua];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="mono">${rua}</td><td>${r.total}</td><td>${r.ocupadas}</td><td>${r.total - r.ocupadas}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// USUÁRIOS
+// ============================================================
+let USUARIOS_CACHE = [];
+let idEmEdicaoUsuario = null;
+
+function renderUsuarios() {
+  if (!podeAcessar(SES.perfil, "gerenciarUsuarios")) { toast("Você não tem permissão para gerenciar usuários.", "err"); go("dashboard"); return; }
+  carregarListaUsuarios();
+  G("formNovoUsuario").onsubmit = criarUsuarioSubmit;
+}
+
+async function carregarListaUsuarios() {
+  const tbody = G("listaUsuarios");
+  USUARIOS_CACHE = await fsListarTodos("usuarios");
+  if (USUARIOS_CACHE.length === 0) { tbody.innerHTML = `<tr><td colspan="4">Nenhum usuário cadastrado.</td></tr>`; return; }
+  tbody.innerHTML = "";
+  USUARIOS_CACHE.forEach(u => {
+    const ativo = u.ativo !== false;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${u.nome}</td>
+      <td>${NOME_PERFIL[u.perfil] || u.perfil}</td>
+      <td><span class="badge ${ativo ? "bvd" : "bcz"}">${ativo ? "Ativo" : "Inativo"}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn bxs" onclick="abrirModalEdicaoUsuario('${u.id}')">Editar</button>
+        <button class="btn bxs" onclick="alternarAtivoUsuario('${u.id}', ${ativo})">${ativo ? "Desativar" : "Reativar"}</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+window.alternarAtivoUsuario = async function (id, ativoAtual) {
+  await fsAtualizar("usuarios", id, { ativo: !ativoAtual });
+  toast("Status atualizado.", "ok");
+  carregarListaUsuarios();
+};
+
+window.abrirModalEdicaoUsuario = function (id) {
+  const u = USUARIOS_CACHE.find(x => x.id === id);
+  if (!u) return;
+  idEmEdicaoUsuario = id;
+  G("editNome").value = u.nome;
+  G("editPerfil").value = u.perfil;
+  G("editPin").value = "";
+  G("editUsrErro").style.display = "none";
+  G("ovEditarUsuario").classList.add("on");
+};
+window.fecharModalEdicaoUsuario = function () { G("ovEditarUsuario").classList.remove("on"); idEmEdicaoUsuario = null; };
+
+window.salvarEdicaoUsuario = async function () {
+  if (!idEmEdicaoUsuario) return;
+  const perfil = G("editPerfil").value;
+  const novoPin = G("editPin").value.trim();
+  const erroEl = G("editUsrErro");
+  if (novoPin && (novoPin.length < 4 || novoPin.length > 6)) { erroEl.textContent = "O PIN deve ter entre 4 e 6 dígitos."; erroEl.style.display = "block"; return; }
+  try {
+    const dados = { perfil };
+    if (novoPin) dados.pinHash = await gerarHashPin(novoPin);
+    await fsAtualizar("usuarios", idEmEdicaoUsuario, dados);
+    toast("Usuário atualizado.", "ok");
+    window.fecharModalEdicaoUsuario();
+    carregarListaUsuarios();
+  } catch (erro) {
+    erroEl.textContent = erro.message || "Erro ao salvar."; erroEl.style.display = "block";
+  }
+};
+
+async function criarUsuarioSubmit(e) {
+  e.preventDefault();
+  const erroEl = G("usrErro"), sucessoEl = G("usrSucesso");
+  erroEl.style.display = "none"; sucessoEl.style.display = "none";
+  const nome = G("novoNome").value.trim();
+  const perfil = G("novoPerfil").value;
+  const pin = G("novoPin").value.trim();
+  if (pin.length < 4 || pin.length > 6) { erroEl.textContent = "O PIN deve ter entre 4 e 6 dígitos."; erroEl.style.display = "block"; return; }
+
+  const btn = G("btnCriarUsuario");
+  btn.disabled = true; btn.textContent = "Criando...";
+  try {
+    const existentes = await fsBuscarPorCampo("usuarios", "nome", nome);
+    if (existentes.length > 0) throw new Error("Já existe um usuário cadastrado com esse nome.");
+    const pinHash = await gerarHashPin(pin);
+    await fsCriar("usuarios", { nome, perfil, pinHash, ativo: true });
+    sucessoEl.textContent = "Usuário criado com sucesso."; sucessoEl.style.display = "block";
+    G("formNovoUsuario").reset();
+    carregarListaUsuarios();
+  } catch (erro) {
+    erroEl.textContent = erro.message || "Erro ao criar usuário."; erroEl.style.display = "block";
+  } finally {
+    btn.disabled = false; btn.textContent = "Criar usuário";
+  }
+}
+
+// ============================================================
+// INICIALIZAÇÃO — restaura sessão se já estiver logado
+// ============================================================
+(function iniciar() {
+  const sessaoExistente = restaurarSessao();
+  if (sessaoExistente) { SES = sessaoExistente; entrarNoApp(); }
+})();
+</script>
+</body>
+</html>
