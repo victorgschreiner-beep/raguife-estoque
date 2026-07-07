@@ -200,6 +200,7 @@ td.mono{font-family:'Courier New',monospace}
     <!-- ARMAZENAGEM -->
     <div class="scr" id="scr-armazenagem">
       <div class="card">
+        <div class="ali" id="avisoPendente" style="display:none"></div>
         <div class="indicador-etapas">
           <div class="ponto" data-etapa="1"></div>
           <div class="ponto" data-etapa="2"></div>
@@ -208,28 +209,15 @@ td.mono{font-family:'Courier New',monospace}
         </div>
 
         <div class="etapa" id="etapaArm1">
-          <div class="ch"><span class="ct">1. Ler QR Code da entrada da rua</span></div>
-          <div id="leitorQr"></div>
-          <div class="aler" id="msgErroPosicao" style="display:none"></div>
-          <p style="font-size:12px;color:var(--tx2);margin-top:8px" id="statusPosicao">Aponte a câmera para o QR Code fixado na entrada da rua.</p>
-        </div>
-
-        <div class="etapa" id="etapaArm2">
-          <div class="ch"><span class="ct">2. Selecionar a posição</span></div>
-          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Rua confirmada: <strong id="ruaConfirmada"></strong> — toque na posição onde o pallet será armazenado. Posições riscadas já estão ocupadas.</p>
-          <div id="gradePosicoes"></div>
-        </div>
-
-        <div class="etapa" id="etapaArm3">
-          <div class="ch"><span class="ct">3. Foto da etiqueta do pallet</span></div>
-          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Posição confirmada: <strong id="posicaoConfirmada"></strong></p>
+          <div class="ch"><span class="ct">1. Foto da etiqueta do pallet</span></div>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Fotografe assim que o pallet sair da linha, antes de levar para o estoque.</p>
           <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
           <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
         </div>
 
-        <div class="etapa" id="etapaArm4">
-          <div class="ch"><span class="ct">4. Conferir dados antes de salvar</span></div>
+        <div class="etapa" id="etapaArm2">
+          <div class="ch"><span class="ct">2. Conferir dados</span></div>
           <div class="alw" id="alertaRisco" style="display:none"></div>
           <div class="aler" id="msgErroSalvar" style="display:none"></div>
 
@@ -254,9 +242,25 @@ td.mono{font-family:'Courier New',monospace}
               <div class="fg"><label class="fl">Data de Fabricação</label><input type="text" id="campoDataFab" placeholder="DD/MM/AAAA"></div>
               <div class="fg"><label class="fl">Data de Validade</label><input type="text" id="campoDataVal" placeholder="DD/MM/AAAA"></div>
             </div>
-            <button type="submit" class="btn bp bfw" style="padding:12px;margin-bottom:10px">Confirmar e salvar</button>
+            <button type="submit" class="btn bp bfw" style="padding:12px;margin-bottom:10px">Confirmar dados e ir para a rua</button>
             <button type="button" class="btn bfw" onclick="voltarParaFoto()">Refazer foto</button>
           </form>
+        </div>
+
+        <div class="etapa" id="etapaArm3">
+          <div class="ch"><span class="ct">3. Ler QR Code da entrada da rua</span></div>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:10px">Pallet confirmado: <strong id="palletConfirmadoLabel"></strong></p>
+          <div id="leitorQr"></div>
+          <div class="aler" id="msgErroPosicao" style="display:none"></div>
+          <p style="font-size:12px;color:var(--tx2);margin-top:8px" id="statusPosicao">Aponte a câmera para o QR Code fixado na entrada da rua.</p>
+          <button type="button" class="btn bfw" style="margin-top:10px" onclick="cancelarPalletPendente()">Cancelar este pallet</button>
+        </div>
+
+        <div class="etapa" id="etapaArm4">
+          <div class="ch"><span class="ct">4. Selecionar a posição</span></div>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Rua confirmada: <strong id="ruaConfirmada"></strong> — toque na posição onde o pallet será armazenado. Posições riscadas já estão ocupadas.</p>
+          <div class="aler" id="msgErroFinal" style="display:none"></div>
+          <div id="gradePosicoes"></div>
         </div>
       </div>
     </div>
@@ -749,9 +753,33 @@ async function renderDashboard() {
 }
 
 // ============================================================
-// ARMAZENAGEM (wizard: QR -> foto -> OCR -> conferência)
+// ARMAZENAGEM (wizard: foto -> OCR -> conferência -> QR rua -> posição)
 // ============================================================
-let leitorQr = null, codigoPosicaoLida = null, arquivoFotoAtual = null;
+// Ordem reflete o fluxo físico real: o pallet sai da linha já
+// etiquetado e só depois é levado para a rua. Fotografar a
+// etiqueta ANTES de mover o pallet também evita o mesmo problema
+// de altura que já resolvemos para o QR (etiqueta em nível alto
+// do rack seria difícil de fotografar depois de posicionada).
+//
+// PERSISTÊNCIA: entre a conferência (produção) e a leitura do QR
+// da rua (estoque) pode passar alguns minutos de deslocamento do
+// operador. Se o navegador recarregar ou a aba fechar nesse
+// intervalo, os dados confirmados não podem se perder — por isso
+// são salvos em sessionStorage assim que a conferência é
+// confirmada, não só em variável de memória.
+let leitorQr = null;
+const CHAVE_PALLET_PENDENTE = "pallet_pendente_armazenagem";
+
+function salvarPalletPendente(dadosPallet) {
+  sessionStorage.setItem(CHAVE_PALLET_PENDENTE, JSON.stringify(dadosPallet));
+}
+function obterPalletPendente() {
+  const bruto = sessionStorage.getItem(CHAVE_PALLET_PENDENTE);
+  return bruto ? JSON.parse(bruto) : null;
+}
+function limparPalletPendente() {
+  sessionStorage.removeItem(CHAVE_PALLET_PENDENTE);
+}
 
 function irParaEtapaArm(numero) {
   document.querySelectorAll("#scr-armazenagem .etapa").forEach(el => el.classList.remove("ativa"));
@@ -769,9 +797,124 @@ function pararLeitorQr() {
 
 function iniciarFluxoArmazenagem() {
   if (!podeAcessar(SES.perfil, "armazenar")) { toast("Você não tem permissão para armazenar pallets.", "err"); go("dashboard"); return; }
-  codigoPosicaoLida = null; arquivoFotoAtual = null;
   G("msgErroPosicao").style.display = "none";
+  G("avisoPendente").style.display = "none";
+
+  const pendente = obterPalletPendente();
+  if (pendente) {
+    // Retomando um pallet já fotografado/confirmado antes de um
+    // recarregamento de página — não faz o operador refazer a foto.
+    G("avisoPendente").innerHTML = `📦 Retomando pallet pendente: <strong>OP ${pendente.ordemProducao} / Lote ${pendente.lote}</strong>. Escaneie o QR da rua para concluir.`;
+    G("avisoPendente").style.display = "block";
+    G("palletConfirmadoLabel").textContent = `OP ${pendente.ordemProducao} / Lote ${pendente.lote}`;
+    irParaEtapaArm(3);
+    iniciarLeitorQrRua();
+  } else {
+    irParaEtapaArm(1);
+  }
+}
+
+window.cancelarPalletPendente = function () {
+  pararLeitorQr();
+  limparPalletPendente();
+  G("formConferencia").reset();
+  G("areaProcessamento").textContent = "";
+  toast("Pallet cancelado.", "inf");
   irParaEtapaArm(1);
+};
+
+// ------------------------------------------------------------
+// ETAPA 1: foto + OCR
+// ------------------------------------------------------------
+G("inputFoto").addEventListener("change", async (e) => {
+  const arquivo = e.target.files[0];
+  if (!arquivo) return;
+  const area = G("areaProcessamento");
+
+  if (typeof Tesseract === "undefined") {
+    area.innerHTML = `<span style="color:#c0392b">Biblioteca de OCR não carregou (provável bloqueio de rede/CDN). Verifique a conexão com a internet e recarregue a página.</span>`;
+    return;
+  }
+
+  area.textContent = "🔎 Lendo dados da etiqueta...";
+  try {
+    const { data: { text } } = await Tesseract.recognize(arquivo, "por");
+    preencherFormularioArmazenagem(extrairCamposDaEtiqueta(text));
+    avaliarRiscoOpLote();
+    irParaEtapaArm(2);
+  } catch (erro) {
+    area.innerHTML = `<span style="color:#c0392b">Falha ao processar a imagem. Tente novamente com melhor iluminação.</span>`;
+  }
+});
+
+function preencherFormularioArmazenagem(c) {
+  G("campoProduto").value = c.produto; G("campoDescricao").value = c.descricao;
+  G("campoOP").value = c.ordemProducao; G("campoLote").value = c.lote;
+  G("campoSequencia").value = c.sequencia; G("campoTipoArmazenamento").value = c.tipoArmazenamento;
+  G("campoQuantidade").value = c.quantidade; G("campoUnidade").value = c.unidade;
+  G("campoDataFab").value = c.dataFabricacao; G("campoDataVal").value = c.dataValidade;
+}
+
+// ------------------------------------------------------------
+// ETAPA 2: conferência — checagem de duplicidade acontece AQUI,
+// não só no salvamento final. Isso evita que o operador ande até
+// a rua com um pallet que já está cadastrado em outro lugar.
+// ------------------------------------------------------------
+function avaliarRiscoOpLote() {
+  const op = G("campoOP").value, lote = G("campoLote").value;
+  const r = validarRiscoOpLote(op, lote);
+  const alerta = G("alertaRisco");
+  if (r.risco) {
+    alerta.textContent = "⚠️ " + r.motivo; alerta.style.display = "block";
+    G("campoOP").classList.add("campo-risco"); G("campoLote").classList.add("campo-risco");
+  } else {
+    alerta.style.display = "none";
+    G("campoOP").classList.remove("campo-risco"); G("campoLote").classList.remove("campo-risco");
+  }
+}
+["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
+
+window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; };
+
+G("formConferencia").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msgErro = G("msgErroSalvar");
+  msgErro.style.display = "none";
+
+  const dadosPallet = {
+    produto: G("campoProduto").value.trim(), descricao: G("campoDescricao").value.trim(),
+    ordemProducao: G("campoOP").value.trim(), lote: G("campoLote").value.trim(),
+    sequencia: G("campoSequencia").value.trim(), tipoArmazenamento: G("campoTipoArmazenamento").value.trim(),
+    quantidade: parseFloat(G("campoQuantidade").value.replace(",", ".")) || 0, unidade: G("campoUnidade").value.trim(),
+    dataFabricacao: G("campoDataFab").value.trim(), dataValidade: G("campoDataVal").value.trim()
+  };
+  if (!dadosPallet.ordemProducao || !dadosPallet.lote) { msgErro.textContent = "Ordem de Produção e Lote são obrigatórios."; msgErro.style.display = "block"; return; }
+
+  const btn = e.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Verificando...";
+  try {
+    const existente = await buscarPalletAtivo(dadosPallet.ordemProducao, dadosPallet.lote, dadosPallet.sequencia);
+    if (existente) {
+      throw new Error(`Este pallet (OP ${dadosPallet.ordemProducao} / Lote ${dadosPallet.lote} / Seq ${dadosPallet.sequencia}) já está registrado na posição ${existente.posicaoCompleta}. Verifique se não é duplicidade de leitura.`);
+    }
+    salvarPalletPendente(dadosPallet);
+    G("palletConfirmadoLabel").textContent = `OP ${dadosPallet.ordemProducao} / Lote ${dadosPallet.lote}`;
+    irParaEtapaArm(3);
+    iniciarLeitorQrRua();
+  } catch (erro) {
+    msgErro.textContent = erro.message || "Erro ao verificar. Tente novamente.";
+    msgErro.style.display = "block";
+  } finally {
+    btn.disabled = false; btn.textContent = "Confirmar dados e ir para a rua";
+  }
+});
+
+// ------------------------------------------------------------
+// ETAPA 3: QR fica só na entrada da rua (altura acessível) — não
+// existe QR individual por posição, porque em ruas altas
+// (níveis a 2-3m) seria fisicamente impossível escanear.
+// ------------------------------------------------------------
+function iniciarLeitorQrRua() {
   leitorQr = new Html5Qrcode("leitorQr");
   Html5Qrcode.getCameras().then(cameras => {
     const traseira = cameras.find(c => /back|traseira|rear/i.test(c.label)) || cameras[cameras.length - 1];
@@ -782,11 +925,6 @@ function iniciarFluxoArmazenagem() {
   });
 }
 
-// ------------------------------------------------------------
-// ETAPA 1: QR fica só na entrada da rua (altura acessível) — não
-// existe mais QR individual por posição, porque em ruas altas
-// (níveis a 2-3m) seria fisicamente impossível escanear.
-// ------------------------------------------------------------
 async function onQrRuaLida(ruaLida) {
   const msgErro = G("msgErroPosicao");
   msgErro.style.display = "none";
@@ -801,13 +939,15 @@ async function onQrRuaLida(ruaLida) {
   pararLeitorQr();
   G("ruaConfirmada").textContent = ruaLida;
   renderGradePosicoes(posicoesDaRua);
-  irParaEtapaArm(2);
+  irParaEtapaArm(4);
 }
 
 // ------------------------------------------------------------
-// ETAPA 2: seleção manual de Nível/Posição, agrupada por nível.
-// Mostra também as posições ocupadas (riscadas, desabilitadas)
-// para dar contexto visual completo da rua ao operador.
+// ETAPA 4: seleção manual de Nível/Posição. Como os dados do
+// pallet já foram conferidos na etapa 2, tocar numa posição livre
+// já dispara o salvamento — não precisa de mais um botão de
+// confirmação (reduz cliques, que é exatamente o tipo de atrito
+// que atrasa o operador no chão de fábrica).
 // ------------------------------------------------------------
 function renderGradePosicoes(posicoes) {
   const porNivel = {};
@@ -831,86 +971,26 @@ function renderGradePosicoes(posicoes) {
   });
 }
 
-window.selecionarPosicao = function (codigo) {
-  codigoPosicaoLida = codigo;
-  G("posicaoConfirmada").textContent = codigo;
-  irParaEtapaArm(3);
-};
+window.selecionarPosicao = async function (codigo) {
+  const dadosPallet = obterPalletPendente();
+  if (!dadosPallet) { toast("Dados do pallet perdidos. Refaça a foto da etiqueta.", "err"); irParaEtapaArm(1); return; }
 
-G("inputFoto").addEventListener("change", async (e) => {
-  const arquivo = e.target.files[0];
-  if (!arquivo) return;
-  arquivoFotoAtual = arquivo;
-  const area = G("areaProcessamento");
-
-  if (typeof Tesseract === "undefined") {
-    area.innerHTML = `<span style="color:#c0392b">Biblioteca de OCR não carregou (provável bloqueio de rede/CDN). Verifique a conexão com a internet e recarregue a página.</span>`;
-    return;
-  }
-
-  area.textContent = "🔎 Lendo dados da etiqueta...";
-  try {
-    const { data: { text } } = await Tesseract.recognize(arquivo, "por");
-    preencherFormularioArmazenagem(extrairCamposDaEtiqueta(text));
-    avaliarRiscoOpLote();
-    irParaEtapaArm(4);
-  } catch (erro) {
-    area.innerHTML = `<span style="color:#c0392b">Falha ao processar a imagem. Tente novamente com melhor iluminação.</span>`;
-  }
-});
-
-window.voltarParaFoto = function () { irParaEtapaArm(3); G("areaProcessamento").textContent = ""; };
-
-function preencherFormularioArmazenagem(c) {
-  G("campoProduto").value = c.produto; G("campoDescricao").value = c.descricao;
-  G("campoOP").value = c.ordemProducao; G("campoLote").value = c.lote;
-  G("campoSequencia").value = c.sequencia; G("campoTipoArmazenamento").value = c.tipoArmazenamento;
-  G("campoQuantidade").value = c.quantidade; G("campoUnidade").value = c.unidade;
-  G("campoDataFab").value = c.dataFabricacao; G("campoDataVal").value = c.dataValidade;
-}
-
-function avaliarRiscoOpLote() {
-  const op = G("campoOP").value, lote = G("campoLote").value;
-  const r = validarRiscoOpLote(op, lote);
-  const alerta = G("alertaRisco");
-  if (r.risco) {
-    alerta.textContent = "⚠️ " + r.motivo; alerta.style.display = "block";
-    G("campoOP").classList.add("campo-risco"); G("campoLote").classList.add("campo-risco");
-  } else {
-    alerta.style.display = "none";
-    G("campoOP").classList.remove("campo-risco"); G("campoLote").classList.remove("campo-risco");
-  }
-}
-["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
-
-G("formConferencia").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const msgErro = G("msgErroSalvar");
+  const msgErro = G("msgErroFinal");
   msgErro.style.display = "none";
-
-  const dadosPallet = {
-    produto: G("campoProduto").value.trim(), descricao: G("campoDescricao").value.trim(),
-    ordemProducao: G("campoOP").value.trim(), lote: G("campoLote").value.trim(),
-    sequencia: G("campoSequencia").value.trim(), tipoArmazenamento: G("campoTipoArmazenamento").value.trim(),
-    quantidade: parseFloat(G("campoQuantidade").value.replace(",", ".")) || 0, unidade: G("campoUnidade").value.trim(),
-    dataFabricacao: G("campoDataFab").value.trim(), dataValidade: G("campoDataVal").value.trim()
-  };
-  if (!dadosPallet.ordemProducao || !dadosPallet.lote) { msgErro.textContent = "Ordem de Produção e Lote são obrigatórios."; msgErro.style.display = "block"; return; }
-
-  const btn = e.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Salvando...";
+  ld(true, "Salvando pallet...");
   try {
-    await registrarEntradaPallet({ dadosPallet, codigoPosicao: codigoPosicaoLida, usuario: SES });
-    toast("Pallet armazenado com sucesso.", "ok");
-    e.target.reset();
+    await registrarEntradaPallet({ dadosPallet, codigoPosicao: codigo, usuario: SES });
+    limparPalletPendente();
+    ld(false);
+    toast(`Pallet armazenado em ${codigo}.`, "ok");
+    G("formConferencia").reset();
     go("dashboard");
   } catch (erro) {
+    ld(false);
     msgErro.textContent = erro.message || "Erro ao salvar. Tente novamente.";
     msgErro.style.display = "block";
-  } finally {
-    btn.disabled = false; btn.textContent = "Confirmar e salvar";
   }
-});
+};
 
 // ============================================================
 // ESTRUTURA (ruas/posições)
