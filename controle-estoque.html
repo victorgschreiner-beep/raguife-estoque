@@ -493,53 +493,119 @@ function restaurarSessao() {
 // ============================================================
 // OCR — extração de campos da etiqueta (layout fixo Raguife)
 // ============================================================
-function ocrNormalizar(texto) {
-  return texto.replace(/\r/g, "\n").replace(/[ \t]+/g, " ").split("\n").map(l => l.trim()).filter(Boolean);
+// v2: a etiqueta real tem DUAS COLUNAS (Ordem/Sequência/Lote/
+// Quantidade à esquerda; Data/Tipo/Vencimento à direita). O
+// Tesseract não garante a ordem das linhas em layout multi-coluna,
+// então "pegar a linha seguinte ao rótulo" (v1) falha e mistura
+// valores das duas colunas. Nesta versão, cada campo é buscado
+// por proximidade ao rótulo em QUALQUER parte do texto, sempre
+// validando o formato esperado (número, data, código) — isso é
+// mais tolerante à ordem embaralhada de linhas.
+function ocrFlatten(texto) {
+  return texto.replace(/\r/g, "\n").replace(/[ \t]+/g, " ").split("\n").map(l => l.trim()).filter(Boolean).join(" \n ");
 }
-function ocrBuscarValorAposRotulo(linhas, rotulos) {
-  for (let i = 0; i < linhas.length; i++) {
-    const linha = linhas[i].toLowerCase();
-    for (const rotulo of rotulos) {
-      if (linha.includes(rotulo)) {
-        const idx = linha.indexOf(rotulo);
-        const restoMesmaLinha = linhas[i].slice(idx + rotulo.length).replace(/^[:\-–]\s*/, "").trim();
-        if (restoMesmaLinha) return restoMesmaLinha;
-        if (linhas[i + 1]) return linhas[i + 1].trim();
-      }
-    }
+
+// Busca um valor logo após um rótulo, aceitando até `janela`
+// caracteres de "ruído" entre o rótulo e o valor (cobre quebras
+// de linha, dois pontos, hífen, espaços extras do OCR).
+function ocrValorAposRotulo(texto, rotuloRegex, valorRegex, janela) {
+  const rotuloG = new RegExp(rotuloRegex.source, "gi");
+  let m;
+  while ((m = rotuloG.exec(texto)) !== null) {
+    const janelaTexto = texto.slice(m.index + m[0].length, m.index + m[0].length + (janela || 30));
+    const valorMatch = janelaTexto.match(valorRegex);
+    if (valorMatch) return valorMatch[1] || valorMatch[0];
   }
   return "";
 }
-function ocrExtrairQuantidadeEUnidade(texto) {
-  const m = texto.match(/(\d+[.,]?\d*)\s*(sc|kg|un|ton|l)\b/i);
-  if (!m) return { quantidade: "", unidade: "" };
-  return { quantidade: m[1].replace(",", "."), unidade: m[2].toUpperCase() };
-}
+
 function extrairCamposDaEtiqueta(textoBruto) {
-  const linhas = ocrNormalizar(textoBruto);
-  const textoCompleto = linhas.join(" ");
-  const ordemProducao = ocrBuscarValorAposRotulo(linhas, ["ordem de produ"]);
-  const lote = (ocrBuscarValorAposRotulo(linhas, ["lote"]).split(/\s+/)[0] || "");
-  const sequencia = ocrBuscarValorAposRotulo(linhas, ["sequ"]);
-  const tipoArmazenamento = ocrBuscarValorAposRotulo(linhas, ["tipo de armazenamento"]);
-  const quantidadeTexto = ocrBuscarValorAposRotulo(linhas, ["quantidade apontada", "quantidade"]);
-  const datas = [...textoCompleto.matchAll(/\d{2}\/\d{2}\/\d{4}/g)].map(m => m[0]);
-  const { quantidade, unidade } = ocrExtrairQuantidadeEUnidade(quantidadeTexto || textoCompleto);
-  const linhaProduto = linhas.find(l => l.includes("–") || l.includes("-")) || "";
-  const [produto, descricao] = linhaProduto.split(/[-–]/).map(s => (s || "").trim());
+  const texto = ocrFlatten(textoBruto);
+
+  // Ordem de Produção e Lote: janela ampla (60 chars) para alcançar
+  // o valor mesmo quando o OCR agrupa dois rótulos na mesma linha
+  // (ex: "Ordem de Producao Data de Fabricacao" numa linha só, com
+  // os dois valores na linha seguinte). Datas não atrapalham essa
+  // busca porque têm barras (11/06/2026), então nunca formam uma
+  // sequência de 8+ dígitos contínuos como um código de OP/Lote.
+  const ordemProducao = ocrValorAposRotulo(texto, /ordem\s+de\s+produ\w*/i, /(\d{8,14})/, 60);
+  const lote = ocrValorAposRotulo(texto, /\blote\b/i, /(\d{8,14})/, 60);
+
+  // Sequência: código só de letras, comprimento fixo (calibrado com
+  // etiquetas reais: sempre 6 caracteres, ex: FHSNQB, FHNHCD).
+  // Usar comprimento exato evita pegar palavras genéricas próximas
+  // como "Tipo" (4) ou "Armazenamento" (13).
+  const sequencia = ocrValorAposRotulo(texto, /sequ[êe]ncia/i, /\b([A-Z]{6})\b/i, 40);
+
+  // Tipo de Armazenamento: busca por lista de valores conhecidos em
+  // qualquer parte do texto — não depende de posição/coluna, então
+  // não é afetado pelo embaralhamento de linhas do OCR.
+  const tipoConhecido = texto.match(/\b(SACO|GRANEL|BIG\s?BAG|A\s?GRANEL|BAG)\b/i);
+  const tipoArmazenamento = tipoConhecido
+    ? tipoConhecido[1].toUpperCase()
+    : ocrValorAposRotulo(texto, /tipo\s+de\s+armazen\w*/i, /([A-Za-zÀ-ú]{3,15})/, 40);
+
+  // Quantidade + Unidade: número decimal seguido da unidade
+  const quantidadeMatch = texto.match(/quantidade\s+apontada[\s\S]{0,15}?(\d+[.,]\d{1,2})\s*(sc|kg|un|ton|l)\b/i)
+    || texto.match(/(\d+[.,]\d{1,2})\s*(sc|kg|un|ton|l)\b/i);
+  const quantidade = quantidadeMatch ? quantidadeMatch[1].replace(",", ".") : "";
+  const unidade = quantidadeMatch ? quantidadeMatch[2].toUpperCase() : "";
+
+  // Datas: extrai todas e ordena cronologicamente — Fabricação é
+  // sempre anterior à Validade, então isso é confiável mesmo com
+  // colunas embaralhadas (já testado e funciona nos dois layouts).
+  const datasEncontradas = [...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)]
+    .map(m => ({ texto: m[0], valor: new Date(+m[3], +m[2] - 1, +m[1]).getTime() }))
+    .sort((a, b) => a.valor - b.valor);
+  const dataFabricacao = datasEncontradas[0]?.texto || "";
+  const dataValidade = datasEncontradas[1]?.texto || "";
+
+  // Produto/Descrição: linha no formato "CODIGO – DESCRIÇÃO",
+  // onde o código é um bloco de letras+números sem espaço.
+  const linhaProduto = textoBruto.split("\n").map(l => l.trim())
+    .find(l => /^[A-Z0-9]{5,15}\s*[-–—]\s*.+/i.test(l)) || "";
+  const partesProduto = linhaProduto.match(/^([A-Z0-9]{5,15})\s*[-–—]\s*(.+)$/i);
+  const produto = partesProduto ? partesProduto[1].trim() : "";
+  const descricao = partesProduto ? partesProduto[2].trim() : "";
+
   return {
-    produto: produto || "", descricao: descricao || "",
-    ordemProducao: ordemProducao.replace(/\s/g, ""), lote: lote.replace(/\s/g, ""),
-    sequencia: sequencia.replace(/\s/g, ""), tipoArmazenamento: tipoArmazenamento || "",
-    quantidade: quantidade || "", unidade: unidade || "",
-    dataFabricacao: datas[0] || "", dataValidade: datas[1] || ""
+    produto, descricao,
+    ordemProducao: ordemProducao.replace(/\s/g, ""),
+    lote: lote.replace(/\s/g, ""),
+    sequencia: sequencia.replace(/\s/g, "").toUpperCase(),
+    tipoArmazenamento: tipoArmazenamento || "",
+    quantidade, unidade,
+    dataFabricacao, dataValidade
   };
+}
+
+// ------------------------------------------------------------
+// VALIDAÇÃO CRUZADA OP/LOTE — v2
+// A versão anterior comparava só os últimos 3 dígitos, o que
+// gera FALSO ALARME quando OP e Lote compartilham o mesmo sufixo
+// por coincidência do padrão de numeração da Raguife (ex: ambos
+// terminam em "001"), mesmo sendo números bem diferentes no meio.
+// Agora comparamos a distância de Hamming (nº de dígitos que
+// diferem, posição a posição) entre os dois códigos completos —
+// mais preciso para captar "números visualmente parecidos de
+// verdade" e evitar alertas desnecessários que desgastam a
+// confiança do operador no sistema de alerta.
+// ------------------------------------------------------------
+function distanciaHamming(a, b) {
+  if (a.length !== b.length) return null;
+  let dif = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) dif++;
+  return dif;
 }
 function validarRiscoOpLote(ordemProducao, lote) {
   if (!ordemProducao || !lote) return { risco: false };
   if (ordemProducao === lote) return { risco: true, motivo: "Ordem de Produção e Lote foram lidos como idênticos. Verifique a etiqueta manualmente." };
-  const dif = Math.abs(parseInt(ordemProducao.slice(-3), 10) - parseInt(lote.slice(-3), 10));
-  if (!isNaN(dif) && dif <= 2) return { risco: true, motivo: "Ordem de Produção e Lote são muito parecidos. Confira os dois campos com atenção antes de salvar." };
+  const dist = distanciaHamming(ordemProducao, lote);
+  // Números de mesmo tamanho que diferem em só 1-2 dígitos são o
+  // caso clássico de troca por erro de leitura/digitação.
+  if (dist !== null && dist <= 2) {
+    return { risco: true, motivo: `Ordem de Produção e Lote diferem em apenas ${dist} dígito(s). Confira os dois campos com atenção antes de salvar.` };
+  }
   return { risco: false };
 }
 
