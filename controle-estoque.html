@@ -211,9 +211,14 @@ td.mono{font-family:'Courier New',monospace}
 
         <div class="etapa" id="etapaArm1">
           <div class="ch"><span class="ct">1. Foto da etiqueta do pallet</span></div>
-          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Fotografe assim que o pallet sair da linha, antes de levar para o estoque.</p>
-          <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
-          <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:10px">Encaixe a etiqueta dentro da moldura, preenchendo o máximo possível do quadro, e toque em capturar.</p>
+          <div id="cameraOcrWrap" style="position:relative;width:100%;border-radius:var(--r2);overflow:hidden;background:#000">
+            <video id="videoOcr" playsinline muted style="width:100%;display:block"></video>
+            <div id="molduraGuia" style="position:absolute;top:15%;left:6%;width:88%;height:70%;border:3px solid #d29922;border-radius:8px;box-shadow:0 0 0 999px rgba(0,0,0,0.45);pointer-events:none"></div>
+          </div>
+          <canvas id="canvasOcr" style="display:none"></canvas>
+          <div class="aler" id="msgErroCamera" style="display:none"></div>
+          <button type="button" class="btn bp bfw" style="padding:12px;margin-top:10px" onclick="capturarFotoOcr()">📷 Capturar</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
         </div>
 
@@ -226,10 +231,6 @@ td.mono{font-family:'Courier New',monospace}
             <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver texto bruto lido pelo OCR (depuração)</summary>
             <textarea id="textoOcrBruto" readonly style="width:100%;height:120px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
             <p style="color:var(--tx2);margin-top:4px">Se algum campo veio errado, copie esse texto e envie — ajuda a calibrar a extração com precisão, em vez de tentativa e erro.</p>
-          </details>
-          <details style="margin-bottom:14px;font-size:12px">
-            <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver diagnóstico do código de barras (depuração)</summary>
-            <textarea id="textoBarcodeDebug" readonly style="width:100%;height:70px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
           </details>
 
           <form id="formConferencia">
@@ -412,7 +413,6 @@ td.mono{font-family:'Courier New',monospace}
 // ============================================================
 // FIREBASE
 // ============================================================
-import * as zbarWasm from "https://unpkg.com/@undecaf/zbar-wasm@0.11.0/dist/index.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
@@ -751,7 +751,7 @@ function entrarNoApp() {
 // NAVEGAÇÃO (SPA)
 // ============================================================
 window.go = function (tela, btn) {
-  if (tela !== "armazenagem") pararLeitorQr();
+  if (tela !== "armazenagem") { pararLeitorQr(); pararCameraOcr(); }
 
   document.querySelectorAll(".scr").forEach(el => el.classList.remove("on"));
   document.querySelectorAll(".nb").forEach(el => el.classList.remove("on"));
@@ -847,16 +847,19 @@ function iniciarFluxoArmazenagem() {
     iniciarLeitorQrRua();
   } else {
     irParaEtapaArm(1);
+    iniciarCameraOcr();
   }
 }
 
 window.cancelarPalletPendente = function () {
   pararLeitorQr();
+  pararCameraOcr();
   limparPalletPendente();
   G("formConferencia").reset();
   G("areaProcessamento").textContent = "";
   toast("Pallet cancelado.", "inf");
   irParaEtapaArm(1);
+  iniciarCameraOcr();
 };
 
 // ------------------------------------------------------------
@@ -869,38 +872,6 @@ window.cancelarPalletPendente = function () {
 // JS puras como a que usamos antes (Quagga2, que retornou leituras
 // erradas em teste real).
 // ------------------------------------------------------------
-let ordemProducaoLida = "", sequenciaLida = "";
-
-async function lerCodigoDeBarrasZbar(arquivo) {
-  const img = new Image();
-  const url = URL.createObjectURL(arquivo);
-  try {
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-      img.src = url;
-    });
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const simbolos = await zbarWasm.scanImageData(imageData);
-    return simbolos.map(s => ({ formato: s.typeName, valor: s.decode() }));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-// Padrão real observado em todas as etiquetas até agora: OP com
-// EXATAMENTE 11 dígitos, sempre começando com "0"; Sequência com
-// EXATAMENTE 6 caracteres — validação apertada para descartar
-// falsos positivos (ex: outro padrão de fundo lido por engano).
-function validarFormatoBarcode(valor) {
-  const m = valor.match(/^(0\d{10})([A-Za-z0-9]{6})$/);
-  return m ? { ordemProducao: m[1], sequencia: m[2].toUpperCase() } : null;
-}
 
 // ------------------------------------------------------------
 // PRÉ-PROCESSAMENTO DE IMAGEM para melhorar a leitura do OCR:
@@ -944,30 +915,62 @@ function preprocessarImagemParaOcr(arquivo) {
 // ETAPA 1: foto única — código de barras (ZBar-WASM) + OCR
 // completo, ambos processados a partir da mesma imagem.
 // ------------------------------------------------------------
-G("inputFoto").addEventListener("change", async (e) => {
-  const arquivo = e.target.files[0];
-  if (!arquivo) return;
+// ------------------------------------------------------------
+// CÂMERA DENTRO DO APP com moldura guia — substitui o input de
+// arquivo nativo (que abria o app de câmera do celular sem
+// nenhum controle sobre enquadramento). Ter a câmera dentro da
+// própria tela permite mostrar uma moldura indicando onde
+// encaixar a etiqueta, o que ajuda a resolver o problema real
+// identificado: fotos com pouca área útil de etiqueta (muito
+// fundo/mesa ao redor) prejudicam a nitidez efetiva do texto
+// para o OCR.
+// ------------------------------------------------------------
+let streamCameraOcr = null;
+
+async function iniciarCameraOcr() {
+  const msgErro = G("msgErroCamera");
+  msgErro.style.display = "none";
+  try {
+    streamCameraOcr = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+    });
+    const video = G("videoOcr");
+    video.srcObject = streamCameraOcr;
+    await video.play();
+  } catch (erro) {
+    msgErro.textContent = "Não foi possível acessar a câmera. Verifique as permissões do navegador.";
+    msgErro.style.display = "block";
+  }
+}
+
+function pararCameraOcr() {
+  if (streamCameraOcr) {
+    streamCameraOcr.getTracks().forEach(t => t.stop());
+    streamCameraOcr = null;
+  }
+}
+
+window.capturarFotoOcr = async function () {
+  const video = G("videoOcr");
+  if (!video.videoWidth) return; // câmera ainda não está pronta
+
+  const canvas = G("canvasOcr");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  pararCameraOcr();
+  await processarFotoOcr(blob);
+};
+
+// ------------------------------------------------------------
+// OCR completo da etiqueta (todos os campos), a partir do frame
+// capturado da câmera dentro do app.
+// ------------------------------------------------------------
+async function processarFotoOcr(arquivo) {
   const area = G("areaProcessamento");
 
-  // 1) Código de barras via ZBar-WASM — roda igual em qualquer navegador.
-  area.textContent = "🔍 Lendo código de barras...";
-  ordemProducaoLida = ""; sequenciaLida = "";
-  try {
-    const simbolos = await lerCodigoDeBarrasZbar(arquivo);
-    G("textoBarcodeDebug").value = simbolos.length
-      ? simbolos.map(s => `[${s.formato}] ${s.valor}`).join("\n")
-      : "(nenhum código de barras detectado nesta foto)";
-    for (const s of simbolos) {
-      const validado = validarFormatoBarcode(s.valor);
-      if (validado) { ordemProducaoLida = validado.ordemProducao; sequenciaLida = validado.sequencia; break; }
-    }
-  } catch (erro) {
-    G("textoBarcodeDebug").value = "Erro ao decodificar: " + erro.message;
-  }
-
-  // 2) OCR completo da etiqueta (todos os campos) — usado para
-  // Produto/Descrição/Tipo/Quantidade/Datas, e como reforço/backup
-  // de OP/Sequência caso o código de barras não tenha sido lido.
   let camposOcr = { produto: "", descricao: "", ordemProducao: "", lote: "", sequencia: "", tipoArmazenamento: "", quantidade: "", unidade: "", dataFabricacao: "", dataValidade: "" };
   if (typeof Tesseract !== "undefined") {
     area.textContent = "🔧 Melhorando qualidade da imagem...";
@@ -990,30 +993,17 @@ G("inputFoto").addEventListener("change", async (e) => {
     area.innerHTML = `<span style="color:#8a5700">⚠️ OCR indisponível (bloqueio de rede) — preencha os campos manualmente.</span>`;
   }
 
-  preencherFormularioArmazenagem({
-    produto: camposOcr.produto,
-    descricao: camposOcr.descricao,
-    // Prioriza o código de barras para OP/Sequência (mais confiável,
-    // tem checksum); usa o OCR como reforço se o barcode não leu.
-    ordemProducao: ordemProducaoLida || camposOcr.ordemProducao,
-    sequencia: sequenciaLida || camposOcr.sequencia,
-    lote: camposOcr.lote,
-    tipoArmazenamento: camposOcr.tipoArmazenamento,
-    quantidade: camposOcr.quantidade,
-    unidade: camposOcr.unidade || "SC",
-    dataFabricacao: camposOcr.dataFabricacao,
-    dataValidade: camposOcr.dataValidade
-  });
+  preencherFormularioArmazenagem(camposOcr);
 
-  if (!ordemProducaoLida && !camposOcr.ordemProducao) {
+  if (!camposOcr.ordemProducao) {
     const avisoConfianca = G("avisoConfiancaOcr");
-    avisoConfianca.textContent = `⚠️ Ordem de Produção e Sequência não foram lidas (nem pelo código de barras, nem pelo OCR). Preencha manualmente, conferindo com a etiqueta.`;
+    avisoConfianca.textContent = `⚠️ Ordem de Produção não foi lida pelo OCR. Preencha manualmente, conferindo com a etiqueta.`;
     avisoConfianca.style.display = "block";
   }
 
   avaliarRiscoOpLote();
   irParaEtapaArm(2);
-});
+}
 
 function preencherFormularioArmazenagem(c) {
   G("campoProduto").value = c.produto; G("campoDescricao").value = c.descricao;
@@ -1050,7 +1040,7 @@ function avaliarRiscoOpLote() {
 }
 ["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
 
-window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("textoBarcodeDebug").value = ""; G("avisoConfiancaOcr").style.display = "none"; selecionarTipoArmazenamento(null); };
+window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("avisoConfiancaOcr").style.display = "none"; selecionarTipoArmazenamento(null); iniciarCameraOcr(); };
 
 G("formConferencia").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1151,7 +1141,7 @@ function renderGradePosicoes(posicoes) {
 
 window.selecionarPosicao = async function (codigo) {
   const dadosPallet = obterPalletPendente();
-  if (!dadosPallet) { toast("Dados do pallet perdidos. Refaça a foto da etiqueta.", "err"); irParaEtapaArm(1); return; }
+  if (!dadosPallet) { toast("Dados do pallet perdidos. Refaça a foto da etiqueta.", "err"); irParaEtapaArm(1); iniciarCameraOcr(); return; }
 
   const msgErro = G("msgErroFinal");
   msgErro.style.display = "none";
