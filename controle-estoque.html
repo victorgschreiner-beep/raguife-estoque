@@ -220,10 +220,12 @@ td.mono{font-family:'Courier New',monospace}
 
         <div class="etapa" id="etapaArm2">
           <div class="ch"><span class="ct">2. Foto da etiqueta (produto)</span></div>
-          <p style="font-size:12px;color:var(--tx2);margin-bottom:10px">Pallet: <strong id="barcodeConfirmadoLabel"></strong></p>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:4px">Pallet: <strong id="barcodeConfirmadoLabel"></strong></p>
+          <p style="font-size:11px;color:#8a5700;margin-bottom:10px">⚠️ Confira esse código com a etiqueta física antes de continuar. Se estiver errado, toque em "Reler código" abaixo.</p>
           <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
           <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
+          <button type="button" class="btn bfw" style="margin-top:10px" onclick="recomecarLeituraBarcode()">↩️ Código errado — reler</button>
         </div>
 
         <div class="etapa" id="etapaArm3">
@@ -913,7 +915,13 @@ function pararLeitorBarcode() {
 
 function onBarcodeDetectado(resultado) {
   const codigo = resultado.codeResult.code;
-  const m = codigo.match(/^(\d{9,13})([A-Za-z0-9]{4,10})$/);
+  // Padrão real observado em todas as etiquetas até agora: OP com
+  // EXATAMENTE 11 dígitos, sempre começando com "0"; Sequência com
+  // EXATAMENTE 6 caracteres. Validação apertada de propósito — a
+  // versão anterior (9-13 dígitos + 4-10 caracteres) era frouxa
+  // demais e deixou passar um falso positivo (padrão de fundo lido
+  // como se fosse o código de barras real).
+  const m = codigo.match(/^(0\d{10})([A-Za-z0-9]{6})$/);
   if (!m) return; // não bate com o formato esperado, ignora e segue tentando
   ordemProducaoLida = m[1];
   sequenciaLida = m[2].toUpperCase();
@@ -927,6 +935,12 @@ window.pularParaFotoManual = function () {
   ordemProducaoLida = ""; sequenciaLida = "";
   G("barcodeConfirmadoLabel").textContent = "preenchimento manual";
   irParaEtapaArm(2);
+};
+
+window.recomecarLeituraBarcode = function () {
+  ordemProducaoLida = ""; sequenciaLida = "";
+  irParaEtapaArm(1);
+  iniciarLeitorBarcodeLive();
 };
 
 // ------------------------------------------------------------
