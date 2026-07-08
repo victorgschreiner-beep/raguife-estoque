@@ -216,6 +216,11 @@ td.mono{font-family:'Courier New',monospace}
           <div class="aler" id="msgErroBarcode" style="display:none"></div>
           <p style="font-size:12px;color:var(--tx2);margin-top:8px">Aproxime a câmera do código de barras da etiqueta até focar.</p>
           <button type="button" class="btn bfw" style="margin-top:10px" onclick="pularParaFotoManual()">Não consigo ler — digitar manualmente</button>
+          <details style="margin-top:12px;font-size:12px">
+            <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver tudo que a câmera detectou (depuração)</summary>
+            <textarea id="textoBarcodeDebug" readonly style="width:100%;height:120px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
+            <p style="color:var(--tx2);margin-top:4px">Mostra cada leitura bruta, mesmo as rejeitadas — copie e envie se não estiver funcionando.</p>
+          </details>
         </div>
 
         <div class="etapa" id="etapaArm2">
@@ -881,10 +886,13 @@ window.cancelarPalletPendente = function () {
 // ------------------------------------------------------------
 let quaggaAtivo = false;
 let ordemProducaoLida = "", sequenciaLida = "";
+let ultimosCodigosDetectados = [];
 
 function iniciarLeitorBarcodeLive() {
   ordemProducaoLida = ""; sequenciaLida = "";
+  ultimosCodigosDetectados = [];
   G("msgErroBarcode").style.display = "none";
+  G("textoBarcodeDebug").value = "";
   Quagga.init({
     inputStream: {
       type: "LiveStream",
@@ -915,6 +923,19 @@ function pararLeitorBarcode() {
 
 function onBarcodeDetectado(resultado) {
   const codigo = resultado.codeResult.code;
+  const formato = resultado.codeResult.format;
+
+  // Log de depuração: toda leitura bruta, mesmo rejeitada — sem
+  // isso, uma leitura errada ou vazia é indistinguível de "câmera
+  // não detectou nada", o que já nos custou uma rodada de chute
+  // no escuro antes.
+  const entrada = `[${formato}] ${codigo}`;
+  if (ultimosCodigosDetectados[ultimosCodigosDetectados.length - 1] !== entrada) {
+    ultimosCodigosDetectados.push(entrada);
+    if (ultimosCodigosDetectados.length > 15) ultimosCodigosDetectados.shift();
+    G("textoBarcodeDebug").value = ultimosCodigosDetectados.join("\n");
+  }
+
   // Padrão real observado em todas as etiquetas até agora: OP com
   // EXATAMENTE 11 dígitos, sempre começando com "0"; Sequência com
   // EXATAMENTE 6 caracteres. Validação apertada de propósito — a
