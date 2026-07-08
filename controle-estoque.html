@@ -213,7 +213,6 @@ td.mono{font-family:'Courier New',monospace}
           <div class="ch"><span class="ct">1. Foto da etiqueta do pallet</span></div>
           <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Fotografe assim que o pallet sair da linha, antes de levar para o estoque.</p>
           <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
-          <div id="leitorArquivo" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"></div>
           <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
         </div>
@@ -404,6 +403,7 @@ td.mono{font-family:'Courier New',monospace}
 </script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
 
 <script type="module">
 // ============================================================
@@ -898,19 +898,41 @@ function preprocessarImagemParaOcr(arquivo) {
 
 // ------------------------------------------------------------
 // LEITURA DE CÓDIGO DE BARRAS a partir da MESMA foto (não é uma
-// segunda captura) — usa o mesmo html5-qrcode já carregado,
-// numa instância separada dedicada a arquivo (scanFile), para
-// não conflitar com a instância de câmera ao vivo usada na
-// leitura do QR da rua (etapa 3).
+// segunda captura). Usa Quagga2 — biblioteca dedicada a códigos
+// de barras 1D — em vez do html5-qrcode para essa parte: o
+// html5-qrcode tem bug documentado e não resolvido para CODE_128
+// (issue #242 do projeto: "não lê CODE_128/CODE_93"), formato
+// mais provável do código impresso na etiqueta ("06425101001FHSS64").
+// O html5-qrcode continua sendo usado só para o QR da rua (etapa 3),
+// onde funciona bem — ali o formato é QR de verdade, não 1D.
+//
 // Formato do código de barras da etiqueta: 11 dígitos (Ordem de
 // Produção) + 4-8 caracteres alfanuméricos (Sequência), colados
-// sem separador — ex: "06425101001FHSS64".
+// sem separador.
 // ------------------------------------------------------------
-let leitorArquivoBarcode = null;
+function decodificarBarcode(arquivo) {
+  return new Promise((resolve, reject) => {
+    if (typeof Quagga === "undefined") { reject(new Error("Biblioteca de código de barras não carregou.")); return; }
+    const url = URL.createObjectURL(arquivo);
+    Quagga.decodeSingle({
+      src: url,
+      numOfWorkers: 0,
+      locate: true,
+      inputStream: { size: 1600 },
+      decoder: { readers: ["code_128_reader", "code_39_reader", "code_93_reader"] }
+    }, (resultado) => {
+      URL.revokeObjectURL(url);
+      if (resultado && resultado.codeResult && resultado.codeResult.code) {
+        resolve(resultado.codeResult.code);
+      } else {
+        reject(new Error("Código de barras não detectado"));
+      }
+    });
+  });
+}
 
 async function lerCodigoDeBarras(arquivo) {
-  if (!leitorArquivoBarcode) leitorArquivoBarcode = new Html5Qrcode("leitorArquivo");
-  const textoDecodificado = await leitorArquivoBarcode.scanFile(arquivo, false);
+  const textoDecodificado = await decodificarBarcode(arquivo);
   const m = textoDecodificado.match(/^(\d{9,13})([A-Za-z0-9]{4,10})$/);
   if (!m) {
     // Não bateu com o formato esperado — devolve o texto bruto
