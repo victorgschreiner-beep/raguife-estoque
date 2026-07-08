@@ -207,34 +207,18 @@ td.mono{font-family:'Courier New',monospace}
           <div class="ponto" data-etapa="2"></div>
           <div class="ponto" data-etapa="3"></div>
           <div class="ponto" data-etapa="4"></div>
-          <div class="ponto" data-etapa="5"></div>
         </div>
 
         <div class="etapa" id="etapaArm1">
-          <div class="ch"><span class="ct">1. Ler código de barras do pallet</span></div>
-          <div id="leitorBarcode" style="width:100%;border-radius:var(--r2);overflow:hidden;background:#000"></div>
-          <div class="aler" id="msgErroBarcode" style="display:none"></div>
-          <p style="font-size:12px;color:var(--tx2);margin-top:8px">Aproxime a câmera do código de barras da etiqueta até focar.</p>
-          <button type="button" class="btn bfw" style="margin-top:10px" onclick="pularParaFotoManual()">Não consigo ler — digitar manualmente</button>
-          <details style="margin-top:12px;font-size:12px">
-            <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver tudo que a câmera detectou (depuração)</summary>
-            <textarea id="textoBarcodeDebug" readonly style="width:100%;height:120px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
-            <p style="color:var(--tx2);margin-top:4px">Mostra cada leitura bruta, mesmo as rejeitadas — copie e envie se não estiver funcionando.</p>
-          </details>
-        </div>
-
-        <div class="etapa" id="etapaArm2">
-          <div class="ch"><span class="ct">2. Foto da etiqueta (produto)</span></div>
-          <p style="font-size:12px;color:var(--tx2);margin-bottom:4px">Pallet: <strong id="barcodeConfirmadoLabel"></strong></p>
-          <p style="font-size:11px;color:#8a5700;margin-bottom:10px">⚠️ Confira esse código com a etiqueta física antes de continuar. Se estiver errado, toque em "Reler código" abaixo.</p>
+          <div class="ch"><span class="ct">1. Foto da etiqueta do pallet</span></div>
+          <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Fotografe assim que o pallet sair da linha, antes de levar para o estoque.</p>
           <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
           <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
-          <button type="button" class="btn bfw" style="margin-top:10px" onclick="recomecarLeituraBarcode()">↩️ Código errado — reler</button>
         </div>
 
-        <div class="etapa" id="etapaArm3">
-          <div class="ch"><span class="ct">3. Conferir dados</span></div>
+        <div class="etapa" id="etapaArm2">
+          <div class="ch"><span class="ct">2. Conferir dados</span></div>
           <div class="alw" id="avisoConfiancaOcr" style="display:none"></div>
           <div class="alw" id="alertaRisco" style="display:none"></div>
           <div class="aler" id="msgErroSalvar" style="display:none"></div>
@@ -242,6 +226,10 @@ td.mono{font-family:'Courier New',monospace}
             <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver texto bruto lido pelo OCR (depuração)</summary>
             <textarea id="textoOcrBruto" readonly style="width:100%;height:120px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
             <p style="color:var(--tx2);margin-top:4px">Se algum campo veio errado, copie esse texto e envie — ajuda a calibrar a extração com precisão, em vez de tentativa e erro.</p>
+          </details>
+          <details style="margin-bottom:14px;font-size:12px">
+            <summary style="cursor:pointer;color:var(--tx2);font-weight:600">🔍 Ver diagnóstico do código de barras (depuração)</summary>
+            <textarea id="textoBarcodeDebug" readonly style="width:100%;height:70px;margin-top:8px;font-family:'Courier New',monospace;font-size:11px;background:#f7faf7;border:1px solid var(--bd);border-radius:var(--r);padding:8px;resize:vertical"></textarea>
           </details>
 
           <form id="formConferencia">
@@ -277,8 +265,8 @@ td.mono{font-family:'Courier New',monospace}
           </form>
         </div>
 
-        <div class="etapa" id="etapaArm4">
-          <div class="ch"><span class="ct">4. Ler QR Code da entrada da rua</span></div>
+        <div class="etapa" id="etapaArm3">
+          <div class="ch"><span class="ct">3. Ler QR Code da entrada da rua</span></div>
           <p style="font-size:12px;color:var(--tx2);margin-bottom:10px">Pallet confirmado: <strong id="palletConfirmadoLabel"></strong></p>
           <div id="leitorQr"></div>
           <div class="aler" id="msgErroPosicao" style="display:none"></div>
@@ -286,8 +274,8 @@ td.mono{font-family:'Courier New',monospace}
           <button type="button" class="btn bfw" style="margin-top:10px" onclick="cancelarPalletPendente()">Cancelar este pallet</button>
         </div>
 
-        <div class="etapa" id="etapaArm5">
-          <div class="ch"><span class="ct">5. Selecionar a posição</span></div>
+        <div class="etapa" id="etapaArm4">
+          <div class="ch"><span class="ct">4. Selecionar a posição</span></div>
           <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Rua confirmada: <strong id="ruaConfirmada"></strong> — toque na posição onde o pallet será armazenado. Posições riscadas já estão ocupadas.</p>
           <div class="aler" id="msgErroFinal" style="display:none"></div>
           <div id="gradePosicoes"></div>
@@ -419,12 +407,12 @@ td.mono{font-family:'Courier New',monospace}
 </script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-<script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
 
 <script type="module">
 // ============================================================
 // FIREBASE
 // ============================================================
+import * as zbarWasm from "https://unpkg.com/@undecaf/zbar-wasm@0.11.0/dist/index.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
@@ -763,7 +751,7 @@ function entrarNoApp() {
 // NAVEGAÇÃO (SPA)
 // ============================================================
 window.go = function (tela, btn) {
-  if (tela !== "armazenagem") { pararLeitorQr(); pararLeitorBarcode(); }
+  if (tela !== "armazenagem") pararLeitorQr();
 
   document.querySelectorAll(".scr").forEach(el => el.classList.remove("on"));
   document.querySelectorAll(".nb").forEach(el => el.classList.remove("on"));
@@ -855,114 +843,64 @@ function iniciarFluxoArmazenagem() {
     G("avisoPendente").innerHTML = `📦 Retomando pallet pendente: <strong>OP ${pendente.ordemProducao} / Lote ${pendente.lote}</strong>. Escaneie o QR da rua para concluir.`;
     G("avisoPendente").style.display = "block";
     G("palletConfirmadoLabel").textContent = `OP ${pendente.ordemProducao} / Lote ${pendente.lote}`;
-    irParaEtapaArm(4);
+    irParaEtapaArm(3);
     iniciarLeitorQrRua();
   } else {
     irParaEtapaArm(1);
-    iniciarLeitorBarcodeLive();
   }
 }
 
 window.cancelarPalletPendente = function () {
   pararLeitorQr();
-  pararLeitorBarcode();
   limparPalletPendente();
   G("formConferencia").reset();
   G("areaProcessamento").textContent = "";
   toast("Pallet cancelado.", "inf");
   irParaEtapaArm(1);
-  iniciarLeitorBarcodeLive();
 };
 
 // ------------------------------------------------------------
-// ETAPA 1: leitura AO VIVO do código de barras (não é foto única
-// — usa a câmera em stream contínuo, com feedback visual em tempo
-// real, para o operador conseguir ajustar distância/ângulo até o
-// código focar). Isso veio depois de duas bibliotecas diferentes
-// falharem ao decodificar o código a partir de uma foto estática
-// — a hipótese mais provável é o código ocupar uma fração pequena
-// da imagem; o scan ao vivo contorna isso permitindo ajuste manual
-// de enquadramento pelo operador, com tentativas contínuas.
+// LEITURA DE CÓDIGO DE BARRAS via ZBar-WASM, na MESMA foto usada
+// para o OCR (não é uma segunda captura). ZBar é uma biblioteca
+// C madura (décadas de uso real em leitores de código de barras),
+// compilada para WebAssembly — roda igual em qualquer navegador,
+// incluindo Safari/iOS, diferente da API nativa BarcodeDetector do
+// Chrome (que não existe no iOS) e mais confiável que bibliotecas
+// JS puras como a que usamos antes (Quagga2, que retornou leituras
+// erradas em teste real).
 // ------------------------------------------------------------
-let quaggaAtivo = false;
 let ordemProducaoLida = "", sequenciaLida = "";
-let ultimosCodigosDetectados = [];
 
-function iniciarLeitorBarcodeLive() {
-  ordemProducaoLida = ""; sequenciaLida = "";
-  ultimosCodigosDetectados = [];
-  G("msgErroBarcode").style.display = "none";
-  G("textoBarcodeDebug").value = "";
-  Quagga.init({
-    inputStream: {
-      type: "LiveStream",
-      target: document.querySelector("#leitorBarcode"),
-      constraints: { facingMode: "environment" }
-    },
-    locate: true,
-    decoder: { readers: ["code_128_reader", "code_39_reader", "code_93_reader", "ean_reader"] }
-  }, (err) => {
-    if (err) {
-      G("msgErroBarcode").textContent = "Não foi possível acessar a câmera. Verifique as permissões do navegador.";
-      G("msgErroBarcode").style.display = "block";
-      return;
-    }
-    quaggaAtivo = true;
-    Quagga.start();
-    Quagga.onDetected(onBarcodeDetectado);
-  });
-}
-
-function pararLeitorBarcode() {
-  if (quaggaAtivo) {
-    try { Quagga.offDetected(onBarcodeDetectado); } catch (e) {}
-    try { Quagga.stop(); } catch (e) {}
-    quaggaAtivo = false;
+async function lerCodigoDeBarrasZbar(arquivo) {
+  const img = new Image();
+  const url = URL.createObjectURL(arquivo);
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const simbolos = await zbarWasm.scanImageData(imageData);
+    return simbolos.map(s => ({ formato: s.typeName, valor: s.decode() }));
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
-function onBarcodeDetectado(resultado) {
-  const codigo = resultado.codeResult.code;
-  const formato = resultado.codeResult.format;
-
-  // Log de depuração: toda leitura bruta, mesmo rejeitada — sem
-  // isso, uma leitura errada ou vazia é indistinguível de "câmera
-  // não detectou nada", o que já nos custou uma rodada de chute
-  // no escuro antes.
-  const entrada = `[${formato}] ${codigo}`;
-  if (ultimosCodigosDetectados[ultimosCodigosDetectados.length - 1] !== entrada) {
-    ultimosCodigosDetectados.push(entrada);
-    if (ultimosCodigosDetectados.length > 15) ultimosCodigosDetectados.shift();
-    G("textoBarcodeDebug").value = ultimosCodigosDetectados.join("\n");
-  }
-
-  // Padrão real observado em todas as etiquetas até agora: OP com
-  // EXATAMENTE 11 dígitos, sempre começando com "0"; Sequência com
-  // EXATAMENTE 6 caracteres. Validação apertada de propósito — a
-  // versão anterior (9-13 dígitos + 4-10 caracteres) era frouxa
-  // demais e deixou passar um falso positivo (padrão de fundo lido
-  // como se fosse o código de barras real).
-  const m = codigo.match(/^(0\d{10})([A-Za-z0-9]{6})$/);
-  if (!m) return; // não bate com o formato esperado, ignora e segue tentando
-  ordemProducaoLida = m[1];
-  sequenciaLida = m[2].toUpperCase();
-  pararLeitorBarcode();
-  G("barcodeConfirmadoLabel").textContent = `OP ${ordemProducaoLida} / Seq ${sequenciaLida}`;
-  irParaEtapaArm(2);
+// Padrão real observado em todas as etiquetas até agora: OP com
+// EXATAMENTE 11 dígitos, sempre começando com "0"; Sequência com
+// EXATAMENTE 6 caracteres — validação apertada para descartar
+// falsos positivos (ex: outro padrão de fundo lido por engano).
+function validarFormatoBarcode(valor) {
+  const m = valor.match(/^(0\d{10})([A-Za-z0-9]{6})$/);
+  return m ? { ordemProducao: m[1], sequencia: m[2].toUpperCase() } : null;
 }
-
-window.pularParaFotoManual = function () {
-  pararLeitorBarcode();
-  ordemProducaoLida = ""; sequenciaLida = "";
-  G("barcodeConfirmadoLabel").textContent = "preenchimento manual";
-  irParaEtapaArm(2);
-};
-
-window.recomecarLeituraBarcode = function () {
-  ordemProducaoLida = ""; sequenciaLida = "";
-  irParaEtapaArm(1);
-  iniciarLeitorBarcodeLive();
-};
 
 // ------------------------------------------------------------
 // PRÉ-PROCESSAMENTO DE IMAGEM para melhorar a leitura do OCR:
@@ -1003,76 +941,78 @@ function preprocessarImagemParaOcr(arquivo) {
 }
 
 // ------------------------------------------------------------
-// Datas automáticas: o operador fotografa assim que o pallet sai
-// da linha, então a Data de Fabricação é sempre a data de hoje —
-// não precisa ler da etiqueta. Validade = Fabricação + 12 meses
-// (padrão observado; o campo continua editável na conferência
-// caso algum produto tenha prazo diferente).
-// ------------------------------------------------------------
-function formatarDataBR(data) {
-  const dd = String(data.getDate()).padStart(2, "0");
-  const mm = String(data.getMonth() + 1).padStart(2, "0");
-  const yyyy = data.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-function calcularDatasAutomaticas() {
-  const hoje = new Date();
-  const validade = new Date(hoje);
-  validade.setFullYear(validade.getFullYear() + 1);
-  return { dataFabricacao: formatarDataBR(hoje), dataValidade: formatarDataBR(validade) };
-}
-
-// ------------------------------------------------------------
-// ETAPA 2: só a foto para OCR do Produto/Descrição — OP e
-// Sequência já vieram da etapa 1 (leitura ao vivo do código de
-// barras), não precisam ser lidos de novo aqui.
+// ETAPA 1: foto única — código de barras (ZBar-WASM) + OCR
+// completo, ambos processados a partir da mesma imagem.
 // ------------------------------------------------------------
 G("inputFoto").addEventListener("change", async (e) => {
   const arquivo = e.target.files[0];
   if (!arquivo) return;
   const area = G("areaProcessamento");
 
-  let camposProduto = { produto: "", descricao: "" };
+  // 1) Código de barras via ZBar-WASM — roda igual em qualquer navegador.
+  area.textContent = "🔍 Lendo código de barras...";
+  ordemProducaoLida = ""; sequenciaLida = "";
+  try {
+    const simbolos = await lerCodigoDeBarrasZbar(arquivo);
+    G("textoBarcodeDebug").value = simbolos.length
+      ? simbolos.map(s => `[${s.formato}] ${s.valor}`).join("\n")
+      : "(nenhum código de barras detectado nesta foto)";
+    for (const s of simbolos) {
+      const validado = validarFormatoBarcode(s.valor);
+      if (validado) { ordemProducaoLida = validado.ordemProducao; sequenciaLida = validado.sequencia; break; }
+    }
+  } catch (erro) {
+    G("textoBarcodeDebug").value = "Erro ao decodificar: " + erro.message;
+  }
+
+  // 2) OCR completo da etiqueta (todos os campos) — usado para
+  // Produto/Descrição/Tipo/Quantidade/Datas, e como reforço/backup
+  // de OP/Sequência caso o código de barras não tenha sido lido.
+  let camposOcr = { produto: "", descricao: "", ordemProducao: "", lote: "", sequencia: "", tipoArmazenamento: "", quantidade: "", unidade: "", dataFabricacao: "", dataValidade: "" };
   if (typeof Tesseract !== "undefined") {
     area.textContent = "🔧 Melhorando qualidade da imagem...";
     try {
       const imagemProcessada = await preprocessarImagemParaOcr(arquivo);
-      area.textContent = "🔎 Lendo produto da etiqueta...";
+      area.textContent = "🔎 Lendo dados da etiqueta...";
       const { data } = await Tesseract.recognize(imagemProcessada, "por");
       G("textoOcrBruto").value = data.text;
-      camposProduto = extrairProdutoDescricao(data.text);
+      camposOcr = extrairCamposDaEtiqueta(data.text);
+
+      if (data.confidence < 55) {
+        const avisoConfianca = G("avisoConfiancaOcr");
+        avisoConfianca.textContent = `⚠️ Leitura do OCR com baixa confiança (${Math.round(data.confidence)}%). Confira todos os campos com atenção redobrada.`;
+        avisoConfianca.style.display = "block";
+      }
     } catch (erro) {
       G("textoOcrBruto").value = "";
     }
   } else {
-    area.innerHTML = `<span style="color:#8a5700">⚠️ OCR indisponível (bloqueio de rede) — preencha Produto/Descrição manualmente.</span>`;
+    area.innerHTML = `<span style="color:#8a5700">⚠️ OCR indisponível (bloqueio de rede) — preencha os campos manualmente.</span>`;
   }
 
-  const datas = calcularDatasAutomaticas();
-
   preencherFormularioArmazenagem({
-    produto: camposProduto.produto,
-    descricao: camposProduto.descricao,
-    ordemProducao: ordemProducaoLida,
-    sequencia: sequenciaLida,
-    lote: "",
-    tipoArmazenamento: "",
-    quantidade: "",
-    unidade: "SC",
-    dataFabricacao: datas.dataFabricacao,
-    dataValidade: datas.dataValidade
+    produto: camposOcr.produto,
+    descricao: camposOcr.descricao,
+    // Prioriza o código de barras para OP/Sequência (mais confiável,
+    // tem checksum); usa o OCR como reforço se o barcode não leu.
+    ordemProducao: ordemProducaoLida || camposOcr.ordemProducao,
+    sequencia: sequenciaLida || camposOcr.sequencia,
+    lote: camposOcr.lote,
+    tipoArmazenamento: camposOcr.tipoArmazenamento,
+    quantidade: camposOcr.quantidade,
+    unidade: camposOcr.unidade || "SC",
+    dataFabricacao: camposOcr.dataFabricacao,
+    dataValidade: camposOcr.dataValidade
   });
 
-  if (!ordemProducaoLida) {
+  if (!ordemProducaoLida && !camposOcr.ordemProducao) {
     const avisoConfianca = G("avisoConfiancaOcr");
-    avisoConfianca.textContent = `⚠️ Ordem de Produção e Sequência não foram lidas pelo código de barras. Preencha manualmente, conferindo com a etiqueta.`;
+    avisoConfianca.textContent = `⚠️ Ordem de Produção e Sequência não foram lidas (nem pelo código de barras, nem pelo OCR). Preencha manualmente, conferindo com a etiqueta.`;
     avisoConfianca.style.display = "block";
-  } else {
-    G("avisoConfiancaOcr").style.display = "none";
   }
 
   avaliarRiscoOpLote();
-  irParaEtapaArm(3);
+  irParaEtapaArm(2);
 });
 
 function preencherFormularioArmazenagem(c) {
@@ -1110,7 +1050,7 @@ function avaliarRiscoOpLote() {
 }
 ["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
 
-window.voltarParaFoto = function () { irParaEtapaArm(2); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("avisoConfiancaOcr").style.display = "none"; selecionarTipoArmazenamento(null); };
+window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("textoBarcodeDebug").value = ""; G("avisoConfiancaOcr").style.display = "none"; selecionarTipoArmazenamento(null); };
 
 G("formConferencia").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1137,7 +1077,7 @@ G("formConferencia").addEventListener("submit", async (e) => {
     }
     salvarPalletPendente(dadosPallet);
     G("palletConfirmadoLabel").textContent = `OP ${dadosPallet.ordemProducao} / Lote ${dadosPallet.lote}`;
-    irParaEtapaArm(4);
+    irParaEtapaArm(3);
     iniciarLeitorQrRua();
   } catch (erro) {
     msgErro.textContent = erro.message || "Erro ao verificar. Tente novamente.";
@@ -1148,7 +1088,7 @@ G("formConferencia").addEventListener("submit", async (e) => {
 });
 
 // ------------------------------------------------------------
-// ETAPA 4: QR fica só na entrada da rua (altura acessível) — não
+// ETAPA 3: QR fica só na entrada da rua (altura acessível) — não
 // existe QR individual por posição, porque em ruas altas
 // (níveis a 2-3m) seria fisicamente impossível escanear.
 // ------------------------------------------------------------
@@ -1177,11 +1117,11 @@ async function onQrRuaLida(ruaLida) {
   pararLeitorQr();
   G("ruaConfirmada").textContent = ruaLida;
   renderGradePosicoes(posicoesDaRua);
-  irParaEtapaArm(5);
+  irParaEtapaArm(4);
 }
 
 // ------------------------------------------------------------
-// ETAPA 5: seleção manual de Nível/Posição. Como os dados do
+// ETAPA 4: seleção manual de Nível/Posição. Como os dados do
 // pallet já foram conferidos na etapa 3, tocar numa posição livre
 // já dispara o salvamento — não precisa de mais um botão de
 // confirmação (reduz cliques, que é exatamente o tipo de atrito
