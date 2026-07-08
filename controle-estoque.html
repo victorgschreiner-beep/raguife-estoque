@@ -112,6 +112,7 @@ td.mono{font-family:'Courier New',monospace}
 .indicador-etapas .ponto.atual{background:#d29922}
 #leitorQr{width:100%;border-radius:var(--r2);overflow:hidden}
 .campo-risco{border:2px solid #d29922 !important;background:rgba(210,153,34,.06)}
+.sbt-tipo.selecionado{background:#024f2b;border-color:#024f2b;color:#fff}
 
 /* GRADE DE SELEÇÃO DE POSIÇÃO */
 .nivel-grupo{margin-bottom:16px}
@@ -212,6 +213,7 @@ td.mono{font-family:'Courier New',monospace}
           <div class="ch"><span class="ct">1. Foto da etiqueta do pallet</span></div>
           <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Fotografe assim que o pallet sair da linha, antes de levar para o estoque.</p>
           <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
+          <div id="leitorArquivo" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"></div>
           <button type="button" class="btn bp bfw" style="padding:12px" onclick="document.getElementById('inputFoto').click()">📷 Tirar foto da etiqueta</button>
           <div id="areaProcessamento" style="margin-top:14px;text-align:center;color:var(--tx2)"></div>
         </div>
@@ -238,7 +240,14 @@ td.mono{font-family:'Courier New',monospace}
             </div>
             <div class="fr">
               <div class="fg"><label class="fl">Sequência</label><input type="text" id="campoSequencia" class="mono"></div>
-              <div class="fg"><label class="fl">Tipo de Armazenamento</label><input type="text" id="campoTipoArmazenamento"></div>
+              <div class="fg">
+                <label class="fl">Tipo de Armazenamento</label>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="btn bfw sbt-tipo" data-tipo="SACO" onclick="selecionarTipoArmazenamento('SACO')">Saco</button>
+                  <button type="button" class="btn bfw sbt-tipo" data-tipo="BIG BAG" onclick="selecionarTipoArmazenamento('BIG BAG')">Big Bag</button>
+                </div>
+                <input type="hidden" id="campoTipoArmazenamento">
+              </div>
             </div>
             <div class="fr">
               <div class="fg"><label class="fl">Quantidade</label><input type="text" id="campoQuantidade"></div>
@@ -590,6 +599,23 @@ function extrairCamposDaEtiqueta(textoBruto) {
 }
 
 // ------------------------------------------------------------
+// Extração restrita: só Produto/Descrição, a partir da 1ª linha
+// da etiqueta ("CODIGO – DESCRIÇÃO"). Essa linha fica isolada no
+// topo da etiqueta, em coluna única — por isso é mais confiável
+// que o restante (que agora vem do código de barras + digitação
+// manual, não mais de OCR).
+// ------------------------------------------------------------
+function extrairProdutoDescricao(textoBruto) {
+  const linhaProduto = textoBruto.split("\n").map(l => l.trim())
+    .find(l => /^[A-Z0-9]{5,15}\s*[-–—]\s*.+/i.test(l)) || "";
+  const partesProduto = linhaProduto.match(/^([A-Z0-9]{5,15})\s*[-–—]\s*(.+)$/i);
+  return {
+    produto: partesProduto ? partesProduto[1].trim() : "",
+    descricao: partesProduto ? partesProduto[2].trim() : ""
+  };
+}
+
+// ------------------------------------------------------------
 // VALIDAÇÃO CRUZADA OP/LOTE — v2
 // A versão anterior comparava só os últimos 3 dígitos, o que
 // gera FALSO ALARME quando OP e Lote compartilham o mesmo sufixo
@@ -870,53 +896,124 @@ function preprocessarImagemParaOcr(arquivo) {
   });
 }
 
+// ------------------------------------------------------------
+// LEITURA DE CÓDIGO DE BARRAS a partir da MESMA foto (não é uma
+// segunda captura) — usa o mesmo html5-qrcode já carregado,
+// numa instância separada dedicada a arquivo (scanFile), para
+// não conflitar com a instância de câmera ao vivo usada na
+// leitura do QR da rua (etapa 3).
+// Formato do código de barras da etiqueta: 11 dígitos (Ordem de
+// Produção) + 4-8 caracteres alfanuméricos (Sequência), colados
+// sem separador — ex: "06425101001FHSS64".
+// ------------------------------------------------------------
+let leitorArquivoBarcode = null;
+
+async function lerCodigoDeBarras(arquivo) {
+  if (!leitorArquivoBarcode) leitorArquivoBarcode = new Html5Qrcode("leitorArquivo");
+  const textoDecodificado = await leitorArquivoBarcode.scanFile(arquivo, false);
+  const m = textoDecodificado.match(/^(\d{9,13})([A-Za-z0-9]{4,10})$/);
+  if (!m) {
+    // Não bateu com o formato esperado — devolve o texto bruto
+    // mesmo assim, para o operador ver o que foi lido e decidir.
+    return { ordemProducao: "", sequencia: "", bruto: textoDecodificado };
+  }
+  return { ordemProducao: m[1], sequencia: m[2].toUpperCase(), bruto: textoDecodificado };
+}
+
+// ------------------------------------------------------------
+// Datas automáticas: o operador fotografa assim que o pallet sai
+// da linha, então a Data de Fabricação é sempre a data de hoje —
+// não precisa ler da etiqueta. Validade = Fabricação + 12 meses
+// (padrão observado; o campo continua editável na conferência
+// caso algum produto tenha prazo diferente).
+// ------------------------------------------------------------
+function formatarDataBR(data) {
+  const dd = String(data.getDate()).padStart(2, "0");
+  const mm = String(data.getMonth() + 1).padStart(2, "0");
+  const yyyy = data.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+function calcularDatasAutomaticas() {
+  const hoje = new Date();
+  const validade = new Date(hoje);
+  validade.setFullYear(validade.getFullYear() + 1);
+  return { dataFabricacao: formatarDataBR(hoje), dataValidade: formatarDataBR(validade) };
+}
+
 G("inputFoto").addEventListener("change", async (e) => {
   const arquivo = e.target.files[0];
   if (!arquivo) return;
   const area = G("areaProcessamento");
 
-  if (typeof Tesseract === "undefined") {
-    area.innerHTML = `<span style="color:#c0392b">Biblioteca de OCR não carregou (provável bloqueio de rede/CDN). Verifique a conexão com a internet e recarregue a página.</span>`;
-    return;
-  }
-
-  area.textContent = "🔧 Melhorando qualidade da imagem...";
+  area.textContent = "🔍 Lendo código de barras...";
+  let dadosBarcode = { ordemProducao: "", sequencia: "" };
   try {
-    const imagemProcessada = await preprocessarImagemParaOcr(arquivo);
-
-    area.textContent = "🔎 Lendo dados da etiqueta...";
-    const { data } = await Tesseract.recognize(imagemProcessada, "por");
-    G("textoOcrBruto").value = data.text;
-
-    // Confiança baixa = foto provavelmente com reflexo/desfoque.
-    // Avisa o operador em vez de deixar passar um resultado ruim
-    // sem chamar atenção — ele decide se refaz a foto ou confere
-    // os campos manualmente com mais atenção. Mostrado na tela de
-    // CONFERÊNCIA (não na área de captura, que fica invisível
-    // assim que a tela muda).
-    const avisoConfianca = G("avisoConfiancaOcr");
-    if (data.confidence < 55) {
-      avisoConfianca.textContent = `⚠️ Leitura com baixa confiança (${Math.round(data.confidence)}%). Confira todos os campos com atenção redobrada, ou toque em "Refazer foto" com melhor iluminação.`;
-      avisoConfianca.style.display = "block";
-    } else {
-      avisoConfianca.style.display = "none";
-    }
-
-    preencherFormularioArmazenagem(extrairCamposDaEtiqueta(data.text));
-    avaliarRiscoOpLote();
-    irParaEtapaArm(2);
+    dadosBarcode = await lerCodigoDeBarras(arquivo);
   } catch (erro) {
-    area.innerHTML = `<span style="color:#c0392b">Falha ao processar a imagem. Tente novamente com melhor iluminação.</span>`;
+    // Código de barras não encontrado/ilegível — segue o fluxo
+    // mesmo assim, o operador preenche OP/Sequência manualmente
+    // na conferência em vez de ficar travado sem opção.
+    dadosBarcode = { ordemProducao: "", sequencia: "" };
   }
+
+  let camposProduto = { produto: "", descricao: "" };
+  if (typeof Tesseract !== "undefined") {
+    area.textContent = "🔧 Melhorando qualidade da imagem...";
+    try {
+      const imagemProcessada = await preprocessarImagemParaOcr(arquivo);
+      area.textContent = "🔎 Lendo produto da etiqueta...";
+      const { data } = await Tesseract.recognize(imagemProcessada, "por");
+      G("textoOcrBruto").value = data.text;
+      camposProduto = extrairProdutoDescricao(data.text);
+    } catch (erro) {
+      G("textoOcrBruto").value = "";
+    }
+  } else {
+    area.innerHTML = `<span style="color:#8a5700">⚠️ OCR indisponível (bloqueio de rede) — preencha Produto/Descrição manualmente.</span>`;
+  }
+
+  const datas = calcularDatasAutomaticas();
+
+  preencherFormularioArmazenagem({
+    produto: camposProduto.produto,
+    descricao: camposProduto.descricao,
+    ordemProducao: dadosBarcode.ordemProducao,
+    sequencia: dadosBarcode.sequencia,
+    lote: "",
+    tipoArmazenamento: "",
+    quantidade: "",
+    unidade: "SC",
+    dataFabricacao: datas.dataFabricacao,
+    dataValidade: datas.dataValidade
+  });
+
+  if (!dadosBarcode.ordemProducao) {
+    const avisoConfianca = G("avisoConfiancaOcr");
+    avisoConfianca.textContent = `⚠️ Não consegui ler o código de barras. Preencha Ordem de Produção e Sequência manualmente, conferindo com a etiqueta.`;
+    avisoConfianca.style.display = "block";
+  } else {
+    G("avisoConfiancaOcr").style.display = "none";
+  }
+
+  avaliarRiscoOpLote();
+  irParaEtapaArm(2);
 });
 
 function preencherFormularioArmazenagem(c) {
   G("campoProduto").value = c.produto; G("campoDescricao").value = c.descricao;
   G("campoOP").value = c.ordemProducao; G("campoLote").value = c.lote;
-  G("campoSequencia").value = c.sequencia; G("campoTipoArmazenamento").value = c.tipoArmazenamento;
+  G("campoSequencia").value = c.sequencia;
+  selecionarTipoArmazenamento(c.tipoArmazenamento || null);
   G("campoQuantidade").value = c.quantidade; G("campoUnidade").value = c.unidade;
   G("campoDataFab").value = c.dataFabricacao; G("campoDataVal").value = c.dataValidade;
 }
+
+window.selecionarTipoArmazenamento = function (tipo) {
+  G("campoTipoArmazenamento").value = tipo || "";
+  document.querySelectorAll(".sbt-tipo").forEach(btn => {
+    btn.classList.toggle("selecionado", tipo && btn.dataset.tipo === tipo);
+  });
+};
 
 // ------------------------------------------------------------
 // ETAPA 2: conferência — checagem de duplicidade acontece AQUI,
@@ -937,7 +1034,7 @@ function avaliarRiscoOpLote() {
 }
 ["campoOP", "campoLote"].forEach(id => G(id).addEventListener("input", avaliarRiscoOpLote));
 
-window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("avisoConfiancaOcr").style.display = "none"; };
+window.voltarParaFoto = function () { irParaEtapaArm(1); G("areaProcessamento").textContent = ""; G("textoOcrBruto").value = ""; G("avisoConfiancaOcr").style.display = "none"; selecionarTipoArmazenamento(null); };
 
 G("formConferencia").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -952,6 +1049,8 @@ G("formConferencia").addEventListener("submit", async (e) => {
     dataFabricacao: G("campoDataFab").value.trim(), dataValidade: G("campoDataVal").value.trim()
   };
   if (!dadosPallet.ordemProducao || !dadosPallet.lote) { msgErro.textContent = "Ordem de Produção e Lote são obrigatórios."; msgErro.style.display = "block"; return; }
+  if (!dadosPallet.tipoArmazenamento) { msgErro.textContent = "Selecione o Tipo de Armazenamento (Saco ou Big Bag)."; msgErro.style.display = "block"; return; }
+  if (!dadosPallet.quantidade) { msgErro.textContent = "Informe a Quantidade."; msgErro.style.display = "block"; return; }
 
   const btn = e.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Verificando...";
