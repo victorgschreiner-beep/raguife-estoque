@@ -551,8 +551,14 @@ function extrairCamposDaEtiqueta(textoBruto) {
   // os dois valores na linha seguinte). Datas não atrapalham essa
   // busca porque têm barras (11/06/2026), então nunca formam uma
   // sequência de 8+ dígitos contínuos como um código de OP/Lote.
-  const ordemProducao = ocrValorAposRotulo(texto, /ordem\s+de\s+produ\w*/i, /(\d{8,14})/, 60);
-  const lote = ocrValorAposRotulo(texto, /\blote\b/i, /(\d{8,14})/, 60);
+  // Aceita dígitos + letras que a fonte da etiqueta costuma confundir
+  // com números (0/O/B, 1/I/L, 2/Z, 6/E/G, 7/A/T) — NÃO tentamos
+  // "corrigir" essas letras automaticamente (seria inventar dado).
+  // O objetivo é só trazer algo próximo do certo pro campo, para o
+  // operador corrigir 1-2 caracteres na conferência em vez de digitar
+  // o número inteiro do zero quando o OCR quase acerta.
+  const ordemProducao = ocrValorAposRotulo(texto, /ordem\s+de\s+produ\w*/i, /([0-9OBIL2ZEG6AT]{8,14})/i, 60);
+  const lote = ocrValorAposRotulo(texto, /\blote\b/i, /([0-9OBIL2ZEG6AT]{8,14})/i, 60);
 
   // Sequência: código só de letras, comprimento fixo (calibrado com
   // etiquetas reais: sempre 6 caracteres, ex: FHSNQB, FHNHCD).
@@ -1030,9 +1036,17 @@ function avaliarRiscoOpLote() {
   const op = G("campoOP").value, lote = G("campoLote").value;
   const r = validarRiscoOpLote(op, lote);
   const alerta = G("alertaRisco");
+  const opTemLetras = op && /[A-Za-z]/.test(op);
+  const loteTemLetras = lote && /[A-Za-z]/.test(lote);
+
   if (r.risco) {
     alerta.textContent = "⚠️ " + r.motivo; alerta.style.display = "block";
     G("campoOP").classList.add("campo-risco"); G("campoLote").classList.add("campo-risco");
+  } else if (opTemLetras || loteTemLetras) {
+    alerta.textContent = "⚠️ Ordem de Produção/Lote têm letras onde deveriam ser números — o OCR pode ter confundido dígito com letra parecida (0/O, 6/E, 7/A/T etc). Confira e corrija antes de salvar.";
+    alerta.style.display = "block";
+    G("campoOP").classList.toggle("campo-risco", opTemLetras);
+    G("campoLote").classList.toggle("campo-risco", loteTemLetras);
   } else {
     alerta.style.display = "none";
     G("campoOP").classList.remove("campo-risco"); G("campoLote").classList.remove("campo-risco");
