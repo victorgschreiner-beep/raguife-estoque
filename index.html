@@ -2553,26 +2553,56 @@ async function sbInit() {
 }
 
 // ── Salva DB no Supabase (upsert) ─────────────────────────
+let _sbLastSyncOk = null;      // timestamp do último upsert confirmado com sucesso
+let _sbLastError  = null;      // texto do último erro de gravação (para diagnóstico)
+let _sbErrorToastAt = 0;       // throttle do toast de erro (evita spam a cada 800ms)
+
 async function sbUpsert() {
   if (!_sbOnline) return;
   try {
-    await fetch(`${SB_URL}/rest/v1/${SB_TABLE}`, {
+    const r = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}`, {
       method: 'POST',
       headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({ id: SB_ROW_ID, dados: JSON.stringify({...DB, _version: DB_VERSION}), atualizado_em: new Date().toISOString() })
     });
+    if (!r.ok) {
+      // A gravação HTTP concluiu, mas o servidor recusou (RLS, schema, etc.)
+      // fetch() NÃO lança exceção nesse caso — precisa checar r.ok manualmente.
+      let detail = '';
+      try { detail = (await r.json()).message || ''; } catch(e) {}
+      throw new Error(`HTTP ${r.status}${detail ? ' — ' + detail : ''}`);
+    }
+    _sbLastSyncOk = new Date();
+    _sbLastError = null;
+    sbStatusUI(true);
   } catch(e) {
-    console.warn('[Supabase] Falha ao salvar:', e.message);
+    _sbLastError = e.message;
+    console.error('[Supabase] FALHA AO SALVAR NA NUVEM — dado ficou só neste dispositivo:', e.message);
+    sbStatusUI(true, true); // continua "conectado" para leitura, mas com erro de gravação
+    // Alerta visível ao usuário, com throttle de 10s para não empilhar toasts a cada save
+    const now = Date.now();
+    if (now - _sbErrorToastAt > 10000) {
+      _sbErrorToastAt = now;
+      toast('⚠ Falha ao sincronizar com a nuvem — dados salvos só neste dispositivo. Veja o console (F12).', 'w');
+    }
   }
 }
 
 // ── Status visual na sidebar ──────────────────────────────
-function sbStatusUI(online) {
+// online: conseguiu falar com o Supabase | syncError: última gravação foi recusada pelo servidor
+function sbStatusUI(online, syncError) {
   const el = document.getElementById('sb-status');
   if (!el) return;
-  el.innerHTML = online
-    ? '<span style="color:#43d98c;font-size:9px;font-family:var(--mono);">● ONLINE</span>'
-    : '<span style="color:#f0a500;font-size:9px;font-family:var(--mono);">● OFFLINE</span>';
+  if (!online) {
+    el.innerHTML = '<span style="color:#f0a500;font-size:9px;font-family:var(--mono);">● OFFLINE</span>';
+  } else if (syncError) {
+    el.innerHTML = '<span style="color:#e05656;font-size:9px;font-family:var(--mono);" title="'
+      + (_sbLastError || 'Falha ao gravar na nuvem').replace(/"/g, '&quot;')
+      + '">● ERRO AO SALVAR</span>';
+  } else {
+    const tip = _sbLastSyncOk ? ('Última gravação: ' + _sbLastSyncOk.toLocaleTimeString('pt-BR')) : '';
+    el.innerHTML = '<span style="color:#43d98c;font-size:9px;font-family:var(--mono);" title="' + tip + '">● ONLINE</span>';
+  }
 }
 
 function save() {
